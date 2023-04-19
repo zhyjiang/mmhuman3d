@@ -3,6 +3,7 @@ import pickle
 from enum import Enum
 from math import ceil
 from typing import Any, List, Optional, TypeVar, Union, overload
+import time
 
 import numpy as np
 import torch
@@ -1288,6 +1289,7 @@ class HumanData(dict):
             shape=[data_len, mask_len, dim], dtype=compressed_array.dtype)
         valid_mask_index = np.where(mask_array == 1)[0]
         ret_value[:, valid_mask_index, :] = compressed_array
+
         return ret_value
 
     @classmethod

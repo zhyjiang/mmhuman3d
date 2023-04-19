@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional, Tuple, Union
+import matplotlib.pyplot as plt
+import numpy as np
 
 import torch
 import torch.nn.functional as F
@@ -77,6 +79,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
     def __init__(self,
                  backbone: Optional[Union[dict, None]] = None,
+                 img_res: Optional[int] = 256,
                  neck: Optional[Union[dict, None]] = None,
                  head: Optional[Union[dict, None]] = None,
                  disc: Optional[Union[dict, None]] = None,
@@ -84,6 +87,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                  body_model_train: Optional[Union[dict, None]] = None,
                  body_model_test: Optional[Union[dict, None]] = None,
                  convention: Optional[str] = 'human_data',
+                 loss_centermap: Optional[Union[dict, None]] = None,
                  loss_keypoints2d: Optional[Union[dict, None]] = None,
                  loss_keypoints3d: Optional[Union[dict, None]] = None,
                  loss_vertex: Optional[Union[dict, None]] = None,
@@ -102,6 +106,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.body_model_train = build_body_model(body_model_train)
         self.body_model_test = build_body_model(body_model_test)
         self.convention = convention
+        self.img_res = img_res
 
         # TODO: support HMR+
 
@@ -122,8 +127,23 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.loss_adv = build_loss(loss_adv)
         self.loss_camera = build_loss(loss_camera)
         self.loss_segm_mask = build_loss(loss_segm_mask)
+        self.loss_centermap = build_loss(loss_centermap)
         set_requires_grad(self.body_model_train, False)
         set_requires_grad(self.body_model_test, False)
+    
+    def val_step(self, data_batch):
+        if self.backbone is not None:
+            img = data_batch['img']
+            features = self.backbone(img)
+        else:
+            features = data_batch['features']
+
+        if self.neck is not None:
+            features = self.neck(features)
+
+        predictions = self.head(features)
+        print(predictions)
+        return predictions
 
     def train_step(self, data_batch, optimizer, **kwargs):
         """Train step function.
@@ -225,7 +245,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         pred_cam = predictions['pred_cam'].detach().clone()
         pred_cam_t = torch.stack([
             pred_cam[:, 1], pred_cam[:, 2], 2 * focal_length /
-            (img_res * pred_cam[:, 0] + 1e-9)
+            (self.img_res * pred_cam[:, 0] + 1e-9)
         ],
                                  dim=-1)
 
@@ -268,13 +288,13 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             gt_model_joints,
             gt_keypoints_2d_orig,
             focal_length=focal_length,
-            img_size=img_res)
+            img_size=self.img_res)
 
         opt_cam_t = estimate_translation(
             opt_joints,
             gt_keypoints_2d_orig,
             focal_length=focal_length,
-            img_size=img_res)
+            img_size=self.img_res)
 
         with torch.no_grad():
             loss_dict = self.registrant.evaluate(
@@ -397,6 +417,13 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             pred_score, target_is_real=True, is_disc=False)
         loss = dict(adv_loss=loss_adv)
         return loss
+    
+    def compute_centermap_loss(
+        self,
+        pred_centermap: torch.Tensor,
+        gt_centermap: torch.Tensor):
+        loss = self.loss_centermap(pred_centermap, gt_centermap)
+        return loss
 
     def compute_keypoints3d_loss(
             self,
@@ -406,6 +433,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         """Compute loss for 3d keypoints."""
         keypoints3d_conf = gt_keypoints3d[:, :, 3].float().unsqueeze(-1)
         keypoints3d_conf = keypoints3d_conf.repeat(1, 1, 3)
+        pred_keypoints3d = torch.mean(pred_keypoints3d, dim=1)
         pred_keypoints3d = pred_keypoints3d.float()
         gt_keypoints3d = gt_keypoints3d[:, :, :3].float()
 
@@ -459,18 +487,21 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         keypoints2d_conf = gt_keypoints2d[:, :, 2].float().unsqueeze(-1)
         keypoints2d_conf = keypoints2d_conf.repeat(1, 1, 2)
         gt_keypoints2d = gt_keypoints2d[:, :, :2].float()
+        pred_keypoints3d = pred_keypoints3d.view(-1, 24, 3)
         pred_keypoints2d = project_points(
             pred_keypoints3d,
             pred_cam,
             focal_length=focal_length,
-            img_res=img_res)
+            img_res=self.img_res)
+        pred_keypoints2d = pred_keypoints2d.view(gt_keypoints2d.shape[0], -1, 24, 2)
+        pred_keypoints2d = torch.mean(pred_keypoints2d, dim=1)
         # Normalize keypoints to [-1,1]
         # The coordinate origin of pred_keypoints_2d is
         # the center of the input image.
-        pred_keypoints2d = 2 * pred_keypoints2d / (img_res - 1)
+        pred_keypoints2d = 2 * pred_keypoints2d / (self.img_res - 1)
         # The coordinate origin of gt_keypoints_2d is
         # the top left corner of the input image.
-        gt_keypoints2d = 2 * gt_keypoints2d / (img_res - 1) - 1
+        gt_keypoints2d = 2 * gt_keypoints2d / (self.img_res - 1) - 1
         loss = self.loss_keypoints2d(
             pred_keypoints2d, gt_keypoints2d, reduction_override='none')
 
@@ -572,15 +603,15 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             gt_model_joints_valid,
             gt_keypoints2d_valid,
             focal_length=focal_length,
-            img_size=img_res,
+            img_size=self.img_res,
         )
 
         K = torch.eye(3)
         K[0, 0] = focal_length
         K[1, 1] = focal_length
         K[2, 2] = 1
-        K[0, 2] = img_res / 2.
-        K[1, 2] = img_res / 2.
+        K[0, 2] = self.img_res / 2.
+        K[1, 2] = self.img_res / 2.
         K = K[None, :, :]
 
         R = torch.eye(3)[None, :, :]
@@ -591,7 +622,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             K=K,
             T=gt_cam_t,
             render_choice='part_silhouette',
-            resolution=img_res,
+            resolution=self.img_res,
             return_tensor=True,
             body_model=self.body_model_train,
             device=device,
@@ -615,9 +646,12 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
     def compute_losses(self, predictions: dict, targets: dict):
         """Compute losses."""
-        pred_betas = predictions['pred_shape'].view(-1, 10)
-        pred_pose = predictions['pred_pose'].view(-1, 24, 3, 3)
-        pred_cam = predictions['pred_cam'].view(-1, 3)
+        batch_size = predictions['pred_shape'].shape[0]
+        mask = targets['centermap'] > 0.7
+        pred_betas = predictions['pred_shape'].permute(0, 2, 3, 1)[mask, ...].view(-1, 10)
+        pred_pose = predictions['pred_pose'][mask, ...].view(-1, 24, 3, 3)
+        pred_cam = predictions['pred_cam'].permute(0, 2, 3, 1)[mask, ...].view(-1, 3)
+        pred_centermap = predictions['center_heatmap']
 
         gt_keypoints3d = targets['keypoints3d']
         gt_keypoints2d = targets['keypoints2d']
@@ -631,6 +665,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                 num_joints=gt_keypoints2d.shape[1])
             pred_keypoints3d = pred_output['joints']
             pred_vertices = pred_output['vertices']
+        pred_keypoints3d = pred_keypoints3d.view(batch_size, -1, 24, 3)
 
         # # TODO: temp. Should we multiply confs here?
         # pred_keypoints3d_mask = pred_output['joint_mask']
@@ -670,6 +705,9 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         if 'pred_segm_mask' in predictions:
             pred_segm_mask = predictions['pred_segm_mask']
         losses = {}
+        if self.loss_centermap is not None:
+            losses['centermap_loss'] = self.compute_centermap_loss(pred_centermap,
+                                                                   targets['centermap'])
         if self.loss_keypoints3d is not None:
             losses['keypoints3d_loss'] = self.compute_keypoints3d_loss(
                 pred_keypoints3d,
@@ -762,9 +800,14 @@ class ImageBodyModelEstimator(BodyModelEstimator):
         if self.neck is not None:
             features = self.neck(features)
         predictions = self.head(features)
-        pred_pose = predictions['pred_pose']
-        pred_betas = predictions['pred_shape']
-        pred_cam = predictions['pred_cam']
+        pred_centermap = predictions['center_heatmap']
+        idx = torch.argmax(pred_centermap.view(pred_centermap.shape[0], -1), dim=1)
+        y = idx // pred_centermap.shape[2]
+        x = idx % pred_centermap.shape[2]
+        f = [i for i in range(24)]
+        pred_pose = predictions['pred_pose'][:, y, x, :, :, :]
+        pred_betas = predictions['pred_shape'][:, :, y, x]
+        pred_cam = predictions['pred_cam'][:, :, y, x]
         pred_output = self.body_model_test(
             betas=pred_betas,
             body_pose=pred_pose[:, 1:],

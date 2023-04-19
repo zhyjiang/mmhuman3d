@@ -4,6 +4,7 @@ import os.path
 from abc import ABCMeta
 from collections import OrderedDict
 from typing import Any, List, Optional, Union
+import time
 
 import mmcv
 import numpy as np
@@ -72,6 +73,7 @@ class HumanImageDataset(BaseDataset, metaclass=ABCMeta):
                  data_prefix: str,
                  pipeline: list,
                  dataset_name: str,
+                 whole_image: Optional[bool] = False,
                  body_model: Optional[Union[dict, None]] = None,
                  ann_file: Optional[Union[str, None]] = None,
                  convention: Optional[str] = 'human_data',
@@ -83,6 +85,7 @@ class HumanImageDataset(BaseDataset, metaclass=ABCMeta):
         super(HumanImageDataset,
               self).__init__(data_prefix, pipeline, ann_file, test_mode,
                              dataset_name)
+        self.whole_image = whole_image
         if body_model is not None:
             self.body_model = build_body_model(body_model)
         else:
@@ -142,7 +145,7 @@ class HumanImageDataset(BaseDataset, metaclass=ABCMeta):
                                             self.convention)
                 self.human_data.__setitem__('keypoints2d_mask',
                                             keypoints2d_mask)
-            self.human_data.compress_keypoints_by_mask()
+            # self.human_data.compress_keypoints_by_mask()
 
         if self.cache_data_path is not None:
             if rank == 0 and not os.path.exists(self.cache_data_path):
@@ -169,6 +172,9 @@ class HumanImageDataset(BaseDataset, metaclass=ABCMeta):
         info = {}
         info['img_prefix'] = None
         image_path = self.human_data['image_path'][idx]
+        if image_path[0] == 'S':
+            path_list = image_path.split('/')
+            image_path = os.path.join(path_list[1], path_list[0], path_list[2], path_list[3])
         info['image_path'] = os.path.join(self.data_prefix, 'datasets',
                                           self.dataset_name, image_path)
         if image_path.endswith('smc'):
@@ -189,6 +195,15 @@ class HumanImageDataset(BaseDataset, metaclass=ABCMeta):
             info['bbox_xywh'] = np.zeros((5))
             info['center'] = np.zeros((2))
             info['scale'] = np.zeros((2))
+        
+        Sid = self.human_data['image_path'][idx].split('/')[0]
+        Cid = self.human_data['image_path'][idx].split('/')[2].split('.')[1]
+        if self.whole_image:
+            Sid = self.human_data['image_path'][idx].split('/')[0]
+            Cid = self.human_data['image_path'][idx].split('/')[2].split('.')[1]
+            h, w = (self.human_data['cam_param'][(Sid, Cid)]['H'], self.human_data['cam_param'][(Sid, Cid)]['W'])
+            info['center'] = np.array([w / 2.0, h / 2.0])
+            info['scale'] = np.array([w, h])
 
         # in later modules, we will check validity of each keypoint by
         # its confidence. Therefore, we do not need the mask of keypoints.

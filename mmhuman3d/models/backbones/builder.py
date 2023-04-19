@@ -8,6 +8,7 @@ from .hrnet import (
     PoseHighResolutionNetPyMAFX,
 )
 from .resnet import PoseResNet, ResNet, ResNetV1d
+from .depthnet import DPTDepthModel
 
 BACKBONES = Registry('backbones')
 
@@ -20,6 +21,7 @@ BACKBONES.register_module(
     name='PoseHighResolutionNetExpose', module=PoseHighResolutionNetExpose)
 BACKBONES.register_module(
     name='PoseHighResolutionNetPyMAFX', module=PoseHighResolutionNetPyMAFX)
+BACKBONES.register_module(name='DepthPretrained', module=DPTDepthModel)
 
 
 def build_backbone(cfg):

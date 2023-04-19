@@ -735,6 +735,55 @@ class GetRandomScaleRotation:
 
         return results
 
+@PIPELINES.register_module()
+class GenerateCenterTarget:
+    def __init__(self, img_res, heatmap_size, sigma=3, root_id=14):
+        self.img_res = img_res
+        self.heatmap_size = heatmap_size
+        self.feat_stride = (self.img_res // self.heatmap_size[0],
+                            self.img_res // self.heatmap_size[1])
+        self.sigma = sigma
+        self.root_id = root_id
+
+    def __call__(self, results):
+        '''
+        :param joints:  [num_joints, 3]
+        :return: target
+        '''
+        joints = results['keypoints2d']
+        target = np.zeros((self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
+        # target[30:34, 30:34] = 1
+
+        tmp_size = self.sigma * 3
+
+        joint_id = self.root_id
+        mu_x = int(joints[joint_id][0] / self.feat_stride[0] + 0.5)
+        mu_y = int(joints[joint_id][1] / self.feat_stride[1] + 0.5)
+        # Check that any part of the gaussian is in-bounds
+        ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
+        br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
+
+        # # Generate gaussian
+        size = 2 * tmp_size + 1
+        x = np.arange(0, size, 1, np.float32)
+        y = x[:, np.newaxis]
+        x0 = y0 = size // 2
+        # The gaussian is not normalized, we want the center value to equal 1
+        g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * self.sigma ** 2))
+
+        # Usable gaussian range
+        g_x = max(0, -ul[0]), min(br[0], self.heatmap_size[0]) - ul[0]
+        g_y = max(0, -ul[1]), min(br[1], self.heatmap_size[1]) - ul[1]
+        # Image range
+        img_x = max(0, ul[0]), min(br[0], self.heatmap_size[0])
+        img_y = max(0, ul[1]), min(br[1], self.heatmap_size[1])
+
+        target[img_y[0]:img_y[1], img_x[0]:img_x[1]] = \
+            g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
+
+        results['centermap'] = target
+        return results
+
 
 @PIPELINES.register_module()
 class MeshAffine:
