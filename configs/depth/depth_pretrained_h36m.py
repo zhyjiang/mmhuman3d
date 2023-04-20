@@ -66,6 +66,7 @@ model = dict(
     loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.001),
     # loss_segm_mask=dict(type='CrossEntropyLoss', loss_weight=60),
     # loss_camera=dict(type='CameraPriorLoss', loss_weight=1),
+    test_vis=True,
 )
 
 # dataset settings
@@ -142,7 +143,7 @@ data = dict(
         pipeline=train_pipeline,
         whole_image=True,
         convention='smpl_24',
-        ann_file='sample.npz'
+        ann_file='h36m_train.npz'
     ),
     test=dict(
         type=dataset_type,
@@ -152,10 +153,16 @@ data = dict(
             keypoint_dst='h36m',
             model_path='data/body_models/smpl',
             joints_regressor='data/body_models/J_regressor_h36m.npy'),
-        dataset_name='pw3d',
+        # dataset_name='pw3d',
+        # data_prefix='data',
+        # pipeline=test_pipeline,
+        # ann_file='pw3d_test.npz',
+        dataset_name='h36m',
         data_prefix='data',
         pipeline=test_pipeline,
-        ann_file='pw3d_test.npz'),
+        whole_image=True,
+        ann_file='sample.npz'
+    ),
     val=dict(
         type=dataset_type,
         body_model=dict(

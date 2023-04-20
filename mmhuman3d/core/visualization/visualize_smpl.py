@@ -480,7 +480,7 @@ def render_smpl(
         kp3d: Optional[Union[np.ndarray, torch.Tensor]] = None,
         mask: Optional[Union[np.ndarray, List[int]]] = None,
         vis_kp_index: bool = False,
-        verbose: bool = False) -> Union[None, torch.Tensor]:
+        verbose: bool = False):
     """Render SMPL or SMPL-X mesh or silhouette into differentiable tensors,
     and export video or images.
 
@@ -1064,7 +1064,7 @@ def visualize_smpl_calibration(
     T,
     resolution,
     **kwargs,
-) -> None:
+):
     """Visualize a smpl mesh which has opencv calibration matrix defined in
     screen."""
     assert K is not None, '`K` is required.'
@@ -1088,7 +1088,7 @@ def visualize_smpl_hmr(cam_transl,
                        det_width=224,
                        det_height=224,
                        bbox_format='xyxy',
-                       **kwargs) -> None:
+                       **kwargs):
     """Simplest way to visualize HMR or SPIN or Smplify pred smpl with origin
     frames and predicted cameras."""
     if kp2d is not None:
@@ -1128,7 +1128,7 @@ def visualize_smpl_vibe(orig_cam=None,
                         aspect_ratio=1.0,
                         bbox_scale_factor=1.25,
                         bbox_format='xyxy',
-                        **kwargs) -> None:
+                        **kwargs):
     """Simplest way to visualize pred smpl with origin frames and predicted
     cameras."""
     assert resolution is not None
@@ -1159,7 +1159,7 @@ def visualize_T_pose(num_frames,
                      body_model_config=None,
                      body_model=None,
                      orbit_speed=1.0,
-                     **kwargs) -> None:
+                     **kwargs):
     """Simplest way to visualize a sequence of T pose."""
     assert num_frames > 0, '`num_frames` is required.'
     assert body_model_config is not None or body_model is not None
@@ -1193,7 +1193,7 @@ def visualize_T_pose(num_frames,
         **kwargs)
 
 
-def visualize_smpl_pose(poses=None, verts=None, **kwargs) -> None:
+def visualize_smpl_pose(poses=None, verts=None, **kwargs):
     """Simplest way to visualize a sequence of smpl pose.
 
     Cameras will focus on the center of smpl mesh. `orbit speed` is
@@ -1212,6 +1212,7 @@ def visualize_smpl_pose(poses=None, verts=None, **kwargs) -> None:
         in_ndc=True,
         origin_frames=None,
         frame_list=None,
+        return_tensor=True,
         image_array=None)
     for k in func.keywords.keys():
         if k in kwargs:

@@ -1,7 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional, Tuple, Union
 import matplotlib.pyplot as plt
-import numpy as np
+import glob
+from mmhuman3d.core.visualization.visualize_smpl import visualize_smpl_pose
 
 import torch
 import torch.nn.functional as F
@@ -80,6 +81,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
     def __init__(self,
                  backbone: Optional[Union[dict, None]] = None,
                  img_res: Optional[int] = 256,
+                 test_vis: Optional[bool] = False,
                  neck: Optional[Union[dict, None]] = None,
                  head: Optional[Union[dict, None]] = None,
                  disc: Optional[Union[dict, None]] = None,
@@ -107,6 +109,12 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.body_model_test = build_body_model(body_model_test)
         self.convention = convention
         self.img_res = img_res
+        self.test_vis = test_vis
+        if self.test_vis:
+            self.vis_train_id =  len(glob.glob("train_*.jpg"))
+            self.vis_test_id = len(glob.glob("test_*.jpg"))
+            self.vis_gap_train = 0
+            self.vis_gap_test = 0
 
         # TODO: support HMR+
 
@@ -142,7 +150,6 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             features = self.neck(features)
 
         predictions = self.head(features)
-        print(predictions)
         return predictions
 
     def train_step(self, data_batch, optimizer, **kwargs):
@@ -176,7 +183,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         predictions = self.head(features)
         targets = self.prepare_targets(data_batch)
-
+        
         # optimize discriminator (if have)
         if self.disc is not None:
             self.optimize_discrinimator(predictions, data_batch, optimizer)
@@ -209,7 +216,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             targets: dict,
             threshold: Optional[float] = 10.0,
             focal_length: Optional[float] = 5000.0,
-            img_res: Optional[Union[Tuple[int], int]] = 224) -> dict:
+            img_res: Optional[Union[Tuple[int], int]] = 224):
         """Run registration on 2D keypoinst in predictions to obtain SMPL
         parameters as pseudo ground truth.
 
@@ -246,8 +253,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         pred_cam_t = torch.stack([
             pred_cam[:, 1], pred_cam[:, 2], 2 * focal_length /
             (self.img_res * pred_cam[:, 0] + 1e-9)
-        ],
-                                 dim=-1)
+        ], dim=-1)
 
         gt_keypoints_2d = targets['keypoints2d'].float()
         num_keypoints = gt_keypoints_2d.shape[1]
@@ -666,6 +672,20 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             pred_keypoints3d = pred_output['joints']
             pred_vertices = pred_output['vertices']
         pred_keypoints3d = pred_keypoints3d.view(batch_size, -1, 24, 3)
+        if self.test_vis:
+            if self.vis_gap_train % 1000 == 0:
+                smpl_img = visualize_smpl_pose(verts=pred_vertices[0:1].cpu(), 
+                                            body_model_config=dict(
+                                                    type='SMPL',
+                                                    keypoint_src='h36m',
+                                                    keypoint_dst='h36m',
+                                                    model_path='data/body_models',
+                                                    joints_regressor='data/body_models/J_regressor_h36m.npy'),
+                                            )
+                smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
+                plt.imsave('vis/train_%06d.jpg' % self.vis_train_id, smpl_img)
+                self.vis_train_id += 1
+            self.vis_gap_train += 1
 
         # # TODO: temp. Should we multiply confs here?
         # pred_keypoints3d_mask = pred_output['joint_mask']
@@ -799,6 +819,7 @@ class ImageBodyModelEstimator(BodyModelEstimator):
 
         if self.neck is not None:
             features = self.neck(features)
+        
         predictions = self.head(features)
         pred_centermap = predictions['center_heatmap']
         idx = torch.argmax(pred_centermap.view(pred_centermap.shape[0], -1), dim=1)
@@ -813,6 +834,21 @@ class ImageBodyModelEstimator(BodyModelEstimator):
             body_pose=pred_pose[:, 1:],
             global_orient=pred_pose[:, 0].unsqueeze(1),
             pose2rot=False)
+        
+        if self.test_vis:
+            if self.vis_gap_test % 1000 == 0:
+                smpl_img = visualize_smpl_pose(verts=pred_output['vertices'][0:1].cpu(), 
+                                            body_model_config=dict(
+                                                    type='SMPL',
+                                                    keypoint_src='h36m',
+                                                    keypoint_dst='h36m',
+                                                    model_path='data/body_models',
+                                                    joints_regressor='data/body_models/J_regressor_h36m.npy'),
+                                            )
+                smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
+                plt.imsave('vis/test_%06d.jpg' % self.vis_test_id, smpl_img)
+                self.vis_test_id += 1
+            self.vis_gap_test += 1
 
         pred_vertices = pred_output['vertices']
         pred_keypoints_3d = pred_output['joints']
