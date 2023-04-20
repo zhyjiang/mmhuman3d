@@ -804,10 +804,10 @@ class ImageBodyModelEstimator(BodyModelEstimator):
         idx = torch.argmax(pred_centermap.view(pred_centermap.shape[0], -1), dim=1)
         y = idx // pred_centermap.shape[2]
         x = idx % pred_centermap.shape[2]
-        f = [i for i in range(24)]
-        pred_pose = predictions['pred_pose'][:, y, x, :, :, :]
-        pred_betas = predictions['pred_shape'][:, :, y, x]
-        pred_cam = predictions['pred_cam'][:, :, y, x]
+        f = [i for i in range(pred_centermap.shape[0])]
+        pred_pose = predictions['pred_pose'][f, y, x, :, :, :]
+        pred_betas = predictions['pred_shape'][f, :, y, x]
+        pred_cam = predictions['pred_cam'][f, :, y, x]
         pred_output = self.body_model_test(
             betas=pred_betas,
             body_pose=pred_pose[:, 1:],

@@ -2,7 +2,7 @@ _base_ = ['../_base_/default_runtime.py']
 use_adversarial_train = True
 
 # evaluate
-evaluation = dict(interval=20, metric=['pa-mpjpe', 'mpjpe'])
+evaluation = dict(interval=4, metric=['pa-mpjpe', 'mpjpe'])
 
 img_res = 256
 
@@ -106,7 +106,7 @@ test_pipeline = [
     # dict(type='ToTensor', keys=data_keys),
     dict(
         type='Collect',
-        keys=['img'],
+        keys=['img', 'sample_idx'],
         meta_keys=['image_path', 'center', 'scale', 'rotation'])
 ]
 
@@ -142,7 +142,7 @@ data = dict(
         pipeline=train_pipeline,
         whole_image=True,
         convention='smpl_24',
-        ann_file='h36m_train.npz'
+        ann_file='sample.npz'
     ),
     test=dict(
         type=dataset_type,
@@ -172,6 +172,6 @@ data = dict(
         data_prefix='data',
         pipeline=test_pipeline,
         whole_image=True,
-        ann_file='sample.npz'
+        ann_file='h36m_valid_protocol1.npz'
         ),
 )
