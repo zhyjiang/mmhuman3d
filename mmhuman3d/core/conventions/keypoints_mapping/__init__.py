@@ -91,7 +91,7 @@ def convert_kps(
     mask: Union[np.ndarray, torch.Tensor] = None,
     keypoints_factory: dict = KEYPOINTS_FACTORY,
     return_mask: bool = True
-) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
+):
     """Convert keypoints following the mapping correspondence between src and
     dst keypoints definition. Supported conventions by now: agora, coco, smplx,
     smpl, mpi_inf_3dhp, mpi_inf_3dhp_test, h36m, h36m_mmpose, pw3d, mpii, lsp.

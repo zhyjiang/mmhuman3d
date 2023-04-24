@@ -2,12 +2,15 @@ from abc import ABCMeta, abstractmethod
 from typing import Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import glob
-from mmhuman3d.core.visualization.visualize_smpl import visualize_smpl_pose
+import numpy as np
+import cv2
 
 import torch
 import torch.nn.functional as F
 
 import mmhuman3d.core.visualization.visualize_smpl as visualize_smpl
+from mmhuman3d.core.visualization.visualize_smpl import visualize_smpl_pose
+from mmhuman3d.core.visualization.visualize_keypoints3d import visualize_kp3d
 from mmhuman3d.core.conventions.keypoints_mapping import get_keypoint_idx
 from mmhuman3d.models.utils import FitsDict
 from mmhuman3d.utils.geometry import (
@@ -493,13 +496,13 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         keypoints2d_conf = gt_keypoints2d[:, :, 2].float().unsqueeze(-1)
         keypoints2d_conf = keypoints2d_conf.repeat(1, 1, 2)
         gt_keypoints2d = gt_keypoints2d[:, :, :2].float()
-        pred_keypoints3d = pred_keypoints3d.view(-1, 24, 3)
+        pred_keypoints3d = pred_keypoints3d.view(-1, 17, 3)
         pred_keypoints2d = project_points(
             pred_keypoints3d,
             pred_cam,
             focal_length=focal_length,
             img_res=self.img_res)
-        pred_keypoints2d = pred_keypoints2d.view(gt_keypoints2d.shape[0], -1, 24, 2)
+        pred_keypoints2d = pred_keypoints2d.view(gt_keypoints2d.shape[0], -1, 17, 2)
         pred_keypoints2d = torch.mean(pred_keypoints2d, dim=1)
         # Normalize keypoints to [-1,1]
         # The coordinate origin of pred_keypoints_2d is
@@ -654,6 +657,10 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         """Compute losses."""
         batch_size = predictions['pred_shape'].shape[0]
         mask = targets['centermap'] > 0.7
+        num_sample = torch.sum(mask.view(mask.shape[0], -1), dim=1)
+        if torch.sum(num_sample) / num_sample.shape[0] != num_sample[0]:
+            mask = targets['centermap'] >= 1
+            num_sample = torch.sum(mask.view(mask.shape[0], -1), dim=1)
         pred_betas = predictions['pred_shape'].permute(0, 2, 3, 1)[mask, ...].view(-1, 10)
         pred_pose = predictions['pred_pose'][mask, ...].view(-1, 24, 3, 3)
         pred_cam = predictions['pred_cam'].permute(0, 2, 3, 1)[mask, ...].view(-1, 3)
@@ -671,19 +678,28 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                 num_joints=gt_keypoints2d.shape[1])
             pred_keypoints3d = pred_output['joints']
             pred_vertices = pred_output['vertices']
-        pred_keypoints3d = pred_keypoints3d.view(batch_size, -1, 24, 3)
+        pred_keypoints3d = pred_keypoints3d.view(batch_size, -1, 17, 3)
         if self.test_vis:
             if self.vis_gap_train % 1000 == 0:
+                target_img = (targets['img'][0, :, :, :].permute(1, 2, 0) + 1) / 2.0
+                target_img = target_img.cpu().numpy()
+                centerpos = int(torch.argmax(targets['centermap'][0]))
+                center_x, center_y = (centerpos % 64 * 16, centerpos // 64 * 16)
+                target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
+                target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
+                gt_img = visualize_kp3d(gt_keypoints3d[0:1].cpu().numpy()[:, :, :3], data_source='h36m', return_array=True)[0] / 255.0
+                pred_img = visualize_kp3d(pred_keypoints3d[0, 0:1].detach().cpu().numpy()[:, :, :3], data_source='h36m', return_array=True)[0] / 255.0
                 smpl_img = visualize_smpl_pose(verts=pred_vertices[0:1].cpu(), 
                                             body_model_config=dict(
                                                     type='SMPL',
-                                                    keypoint_src='h36m',
+                                                    keypoint_src='smpl_24',
                                                     keypoint_dst='h36m',
-                                                    model_path='data/body_models',
-                                                    joints_regressor='data/body_models/J_regressor_h36m.npy'),
+                                                    model_path='data/body_models'),
                                             )
                 smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
-                plt.imsave('vis/train_%06d.jpg' % self.vis_train_id, smpl_img)
+                plt.imsave('vis/train_%06d.jpg' % self.vis_train_id, 
+                           np.concatenate([target_img, gt_img, pred_img, smpl_img], axis=1))
+                # exit()
                 self.vis_train_id += 1
             self.vis_gap_train += 1
 

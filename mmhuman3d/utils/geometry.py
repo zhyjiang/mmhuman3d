@@ -146,7 +146,7 @@ def rotation_matrix_to_angle_axis(rotation_matrix):
     return aa
 
 
-def quaternion_to_angle_axis(quaternion: torch.Tensor) -> torch.Tensor:
+def quaternion_to_angle_axis(quaternion: torch.Tensor):
     """
     This function is borrowed from https://github.com/kornia/kornia
     Convert quaternion vector to angle axis of rotation.

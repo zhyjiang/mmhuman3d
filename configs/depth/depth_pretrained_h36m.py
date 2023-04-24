@@ -46,11 +46,13 @@ model = dict(
     ),
     body_model_train=dict(
         type='SMPL',
-        keypoint_src='smpl_54',
-        keypoint_dst='smpl_24',
+        keypoint_src='h36m',
+        keypoint_dst='h36m',
         model_path='data/body_models/smpl',
-        keypoint_approximate=True,
-        extra_joints_regressor='data/body_models/J_regressor_extra.npy'),
+        # keypoint_approximate=True,
+        # extra_joints_regressor='data/body_models/J_regressor_extra.npy'
+        joints_regressor='data/body_models/J_regressor_h36m.npy',
+        ),
     body_model_test=dict(
         type='SMPL',
         keypoint_src='h36m',
@@ -58,7 +60,7 @@ model = dict(
         model_path='data/body_models/smpl',
         joints_regressor='data/body_models/J_regressor_h36m.npy'),
     img_res=img_res,
-    convention='smpl_24',
+    convention='h36m',
     loss_keypoints3d=dict(type='MSELoss', loss_weight=300),
     loss_keypoints2d=dict(type='MSELoss', loss_weight=300),
     loss_centermap=dict(type='MSELoss', loss_weight=60),
@@ -85,10 +87,10 @@ train_pipeline = [
     # dict(
     #     type='SyntheticOcclusion',
     #     occluders_file='data/occluders/pascal_occluders.npy'),
-    dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='smpl_24'),
+    dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='h36m'),
     dict(type='GetRandomScaleRotation', rot_factor=30, scale_factor=0),
     dict(type='MeshAffine', img_res=img_res),
-    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(64, 64), sigma=3),
+    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(64, 64), sigma=3, root_id=0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     dict(type='ToTensor', keys=data_keys),
@@ -142,7 +144,7 @@ data = dict(
         data_prefix='data',
         pipeline=train_pipeline,
         whole_image=True,
-        convention='smpl_24',
+        convention='h36m',
         ann_file='h36m_train.npz'
     ),
     test=dict(
