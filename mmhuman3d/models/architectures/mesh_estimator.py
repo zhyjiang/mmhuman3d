@@ -442,7 +442,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         """Compute loss for 3d keypoints."""
         keypoints3d_conf = gt_keypoints3d[:, :, 3].float().unsqueeze(-1)
         keypoints3d_conf = keypoints3d_conf.repeat(1, 1, 3)
-        pred_keypoints3d = torch.mean(pred_keypoints3d, dim=1)
+        # pred_keypoints3d = torch.mean(pred_keypoints3d, dim=1)
         pred_keypoints3d = pred_keypoints3d.float()
         gt_keypoints3d = gt_keypoints3d[:, :, :3].float()
 
@@ -452,13 +452,15 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         left_hip_idx = get_keypoint_idx('left_hip_extra', self.convention)
         gt_pelvis = (gt_keypoints3d[:, right_hip_idx, :] +
                      gt_keypoints3d[:, left_hip_idx, :]) / 2
-        pred_pelvis = (pred_keypoints3d[:, right_hip_idx, :] +
-                       pred_keypoints3d[:, left_hip_idx, :]) / 2
+        pred_pelvis = (pred_keypoints3d[:, :, right_hip_idx, :] +
+                       pred_keypoints3d[:, :, left_hip_idx, :]) / 2
 
         gt_keypoints3d = gt_keypoints3d - gt_pelvis[:, None, :]
-        pred_keypoints3d = pred_keypoints3d - pred_pelvis[:, None, :]
+        pred_keypoints3d = pred_keypoints3d - pred_pelvis[:, :, None, :]
+        gt_keypoints3d = gt_keypoints3d[:, None, :, :].repeat(1,pred_keypoints3d.shape[1],1,1)
         loss = self.loss_keypoints3d(
             pred_keypoints3d, gt_keypoints3d, reduction_override='none')
+        keypoints3d_conf = keypoints3d_conf[:, None, :, :].repeat(1,pred_keypoints3d.shape[1],1,1)
 
         # If has_keypoints3d is not None, then computes the losses on the
         # instances that have ground-truth keypoints3d.
@@ -688,8 +690,8 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                 target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
                 target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
                 gt_img = visualize_kp3d(gt_keypoints3d[0:1].cpu().numpy()[:, :, :3], data_source='h36m', return_array=True)[0] / 255.0
-                pred_img = visualize_kp3d(pred_keypoints3d[0, 0:1].detach().cpu().numpy()[:, :, :3], data_source='h36m', return_array=True)[0] / 255.0
-                smpl_img = visualize_smpl_pose(verts=pred_vertices[0:1].cpu(), 
+                pred_img = visualize_kp3d(pred_keypoints3d[0, 11:12].detach().cpu().numpy(), data_source='h36m', return_array=True)[0] / 255.0
+                smpl_img = visualize_smpl_pose(verts=pred_vertices[11:12].cpu(), 
                                             body_model_config=dict(
                                                     type='SMPL',
                                                     keypoint_src='smpl_24',
@@ -853,6 +855,13 @@ class ImageBodyModelEstimator(BodyModelEstimator):
         
         if self.test_vis:
             if self.vis_gap_test % 1000 == 0:
+                target_img = (img[0, :, :, :].permute(1, 2, 0) + 1) / 2.0
+                target_img = target_img.cpu().numpy()
+                centerpos = int(torch.argmax(pred_centermap[0]))
+                center_x, center_y = (centerpos % 64 * 16, centerpos // 64 * 16)
+                target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
+                target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
+                pred_img = visualize_kp3d(torch.mean(pred_output['joints'], dim=0).detach().cpu().numpy()[None, :, :], data_source='h36m', return_array=True)[0] / 255.0
                 smpl_img = visualize_smpl_pose(verts=pred_output['vertices'][0:1].cpu(), 
                                             body_model_config=dict(
                                                     type='SMPL',
@@ -862,7 +871,8 @@ class ImageBodyModelEstimator(BodyModelEstimator):
                                                     joints_regressor='data/body_models/J_regressor_h36m.npy'),
                                             )
                 smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
-                plt.imsave('vis/test_%06d.jpg' % self.vis_test_id, smpl_img)
+                plt.imsave('vis/test_%06d.jpg' % self.vis_test_id, 
+                           np.concatenate([target_img, pred_img, smpl_img], axis=1))
                 self.vis_test_id += 1
             self.vis_gap_test += 1
 
