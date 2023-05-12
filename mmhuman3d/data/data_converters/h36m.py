@@ -241,6 +241,12 @@ class H36mConverter(BaseModeConverter):
             user_list = [1, 5, 6, 7, 8]
         elif mode == 'valid':
             user_list = [9, 11]
+            # user_list = [11]
+
+        # if mode == 'train':
+        #     user_list = [1]
+        # elif mode == 'valid':
+        #     user_list = [1]
 
         # go over each user
         for user_i in tqdm(user_list, desc='user id'):

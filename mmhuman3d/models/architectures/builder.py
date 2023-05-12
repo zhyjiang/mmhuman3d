@@ -7,6 +7,8 @@ from .cliff_mesh_estimator import CliffImageBodyModelEstimator
 from .expressive_mesh_estimator import SMPLXImageBodyModelEstimator
 from .hybrik import HybrIK_trainer
 from .mesh_estimator import ImageBodyModelEstimator, VideoBodyModelEstimator
+from .mesh_estimator_KP import ImageBodyKPModelEstimator
+
 from .pymafx import PyMAFX
 
 
@@ -22,6 +24,8 @@ ARCHITECTURES = Registry(
 ARCHITECTURES.register_module(name='HybrIK_trainer', module=HybrIK_trainer)
 ARCHITECTURES.register_module(
     name='ImageBodyModelEstimator', module=ImageBodyModelEstimator)
+ARCHITECTURES.register_module(
+    name='ImageBodyKPModelEstimator', module=ImageBodyKPModelEstimator)
 ARCHITECTURES.register_module(
     name='VideoBodyModelEstimator', module=VideoBodyModelEstimator)
 ARCHITECTURES.register_module(

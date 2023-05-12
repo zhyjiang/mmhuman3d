@@ -45,7 +45,7 @@ def set_requires_grad(nets, requires_grad=False):
                 param.requires_grad = requires_grad
 
 
-class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
+class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
     """BodyModelEstimator Architecture.
 
     Args:
@@ -96,13 +96,14 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                  loss_keypoints2d: Optional[Union[dict, None]] = None,
                  loss_keypoints3d: Optional[Union[dict, None]] = None,
                  loss_vertex: Optional[Union[dict, None]] = None,
-                 loss_smpl_pose: Optional[Union[dict, None]] = None,
-                 loss_smpl_betas: Optional[Union[dict, None]] = None,
+                #  loss_smpl_pose: Optional[Union[dict, None]] = None,
+                #  loss_smpl_betas: Optional[Union[dict, None]] = None,
+                 loss_KP: Optional[Union[dict, None]] = None,
                  loss_camera: Optional[Union[dict, None]] = None,
                  loss_adv: Optional[Union[dict, None]] = None,
                  loss_segm_mask: Optional[Union[dict, None]] = None,
                  init_cfg: Optional[Union[list, dict, None]] = None):
-        super(BodyModelEstimator, self).__init__(init_cfg)
+        super(BodyModelKPEstimator, self).__init__(init_cfg)
         self.backbone = build_backbone(backbone)
         self.neck = build_neck(neck)
         self.head = build_head(head)
@@ -135,8 +136,11 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.loss_keypoints3d = build_loss(loss_keypoints3d)
 
         self.loss_vertex = build_loss(loss_vertex)
-        self.loss_smpl_pose = build_loss(loss_smpl_pose)
-        self.loss_smpl_betas = build_loss(loss_smpl_betas)
+        # self.loss_smpl_pose = build_loss(loss_smpl_pose)
+        # self.loss_smpl_betas = build_loss(loss_smpl_betas)
+
+        #TODO
+        self.loss_KP = build_loss(loss_KP) # add the KP loss
         self.loss_adv = build_loss(loss_adv)
         self.loss_camera = build_loss(loss_camera)
         self.loss_segm_mask = build_loss(loss_segm_mask)
@@ -248,12 +252,14 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         # during data augmentation
         rot_angle = targets['rotation'].squeeze(
         )  # rotation angle used for data augmentation Q
-        gt_betas = targets['smpl_betas'].float()
-        gt_global_orient = targets['smpl_global_orient'].float()
-        gt_pose = targets['smpl_body_pose'].float().view(-1, 69)
+        # gt_betas = targets['smpl_betas'].float()
+        # gt_global_orient = targets['smpl_global_orient'].float()
+        # gt_pose = targets['smpl_body_pose'].float().view(-1, 69)
 
-        pred_rotmat = predictions['pred_pose'].detach().clone()
-        pred_betas = predictions['pred_shape'].detach().clone()
+        # pred_rotmat = predictions['pred_pose'].detach().clone()
+        # pred_betas = predictions['pred_shape'].detach().clone()
+
+        pred_KP = predictions['pred_KP'].detach().clone()
         pred_cam = predictions['pred_cam'].detach().clone()
         pred_cam_t = torch.stack([
             pred_cam[:, 1], pred_cam[:, 2], 2 * focal_length /
@@ -263,18 +269,24 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         gt_keypoints_2d = targets['keypoints2d'].float()
         num_keypoints = gt_keypoints_2d.shape[1]
 
-        has_smpl = targets['has_smpl'].view(
-            -1).bool()  # flag that indicates whether SMPL parameters are valid
-        batch_size = has_smpl.shape[0]
-        device = has_smpl.device
+        # has_smpl = targets['has_smpl'].view(
+        #     -1).bool()  # flag that indicates whether SMPL parameters are valid
+        # batch_size = has_smpl.shape[0]
+        # device = has_smpl.device
+        
+        #TODO how to set the 
+
+        # batch_size? 
 
         # Get GT vertices and model joints
-        # Note that gt_model_joints is different from gt_joints as
+        # Note that gt_model_joints is different from gt_joints as 
+
+        ## so we use gt_joints to regress directly
         # it comes from SMPL
         gt_out = self.body_model_train(
             betas=gt_betas, body_pose=gt_pose, global_orient=gt_global_orient)
         # TODO: support more convention
-        assert num_keypoints == 49
+        # assert num_keypoints == 49
         gt_model_joints = gt_out['joints']
         gt_vertices = gt_out['vertices']
 
@@ -378,12 +390,12 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         # Replace the optimized parameters with the ground truth parameters,
         # if available
-        opt_vertices[has_smpl, :, :] = gt_vertices[has_smpl, :, :]
-        opt_cam_t[has_smpl, :] = gt_cam_t[has_smpl, :]
-        opt_joints[has_smpl, :, :] = gt_model_joints[has_smpl, :, :]
-        opt_pose[has_smpl, 3:] = gt_pose[has_smpl, :]
-        opt_pose[has_smpl, :3] = gt_global_orient[has_smpl, :]
-        opt_betas[has_smpl, :] = gt_betas[has_smpl, :]
+        # opt_vertices[has_smpl, :, :] = gt_vertices[has_smpl, :, :]
+        # opt_cam_t[has_smpl, :] = gt_cam_t[has_smpl, :]
+        # opt_joints[has_smpl, :, :] = gt_model_joints[has_smpl, :, :]
+        # opt_pose[has_smpl, 3:] = gt_pose[has_smpl, :]
+        # opt_pose[has_smpl, :3] = gt_global_orient[has_smpl, :]
+        # opt_betas[has_smpl, :] = gt_betas[has_smpl, :]
 
         # Assert whether a fit is valid by comparing the joint loss with
         # the threshold
@@ -545,7 +557,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                             gt_vertices: torch.Tensor, has_smpl: torch.Tensor):
         """Compute loss for vertices."""
         gt_vertices = gt_vertices.float()
-        conf = has_smpl.float().view(-1, 1, 1)
+        # conf = has_smpl.float().view(-1, 1, 1)
         conf = conf.repeat(1, gt_vertices.shape[1], gt_vertices.shape[2])
         loss = self.loss_vertex(
             pred_vertices, gt_vertices, reduction_override='none')
@@ -665,24 +677,28 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         if torch.sum(num_sample) / num_sample.shape[0] != num_sample[0]:
             mask = targets['centermap'] >= 1
             num_sample = torch.sum(mask.view(mask.shape[0], -1), dim=1)
-        pred_betas = predictions['pred_shape'].permute(0, 2, 3, 1)[mask, ...].view(-1, 10)
-        pred_pose = predictions['pred_pose'][mask, ...].view(-1, 24, 3, 3)
+        # pred_betas = predictions['pred_shape'].permute(0, 2, 3, 1)[mask, ...].view(-1, 10)
+        # pred_pose = predictions['pred_pose'][mask, ...].view(-1, 24, 3, 3)
+
         pred_cam = predictions['pred_cam'].permute(0, 2, 3, 1)[mask, ...].view(-1, 3)
         pred_centermap = predictions['center_heatmap']
+        pred_3d = predictions['pred_KP']
+
 
         gt_keypoints3d = targets['keypoints3d']
         gt_keypoints2d = targets['keypoints2d']
         # pred_pose N, 24, 3, 3
-        if self.body_model_train is not None:
-            pred_output = self.body_model_train(
-                betas=pred_betas,
-                body_pose=pred_pose[:, 1:],
-                global_orient=pred_pose[:, 0].unsqueeze(1),
-                pose2rot=False,
-                num_joints=gt_keypoints2d.shape[1])
-            pred_keypoints3d = pred_output['joints']
-            pred_vertices = pred_output['vertices']
-        pred_keypoints3d = pred_keypoints3d.view(batch_size, -1, 17, 3)
+        # if self.body_model_train is not None:
+        #     pred_output = self.body_model_train(
+        #         betas=pred_betas,
+        #         body_pose=pred_pose[:, 1:],
+        #         global_orient=pred_pose[:, 0].unsqueeze(1),
+        #         pose2rot=False,
+        #         num_joints=gt_keypoints2d.shape[1])
+        #     pred_keypoints3d = pred_output['joints']
+        #     pred_vertices = pred_output['vertices']
+        # pred_keypoints3d = pred_keypoints3d.view(batch_size, -1, 17, 3)
+        pred_3d = pred_3d.view(batch_size, -1, 17, 3)
 
         if self.test_vis:
             if self.vis_gap_train % 1000 == 0:
@@ -895,100 +911,100 @@ class ImageBodyModelEstimator(BodyModelEstimator):
         all_preds['image_idx'] = kwargs['sample_idx']
         return all_preds
 
-# class ImageBodyKPModelEstimator(BodyModelEstimator):
+class ImageBodyKPModelEstimator(BodyModelEstimator):
 
-#     def make_fake_data(self, predictions: dict, requires_grad: bool):
-#         pred_cam = predictions['pred_cam']
-#         # pred_pose = predictions['pred_pose']
-#         # pred_betas = predictions['pred_shape']
-#         pre_keypoint_3d = predictions['pred_keypoints_3d']
-#         if requires_grad:
-#             fake_data = (pred_cam, pre_keypoint_3d)
-#         else:
-#             fake_data = (pred_cam.detach(), pre_keypoint_3d.detach())
+    def make_fake_data(self, predictions: dict, requires_grad: bool):
+        pred_cam = predictions['pred_cam']
+        # pred_pose = predictions['pred_pose']
+        # pred_betas = predictions['pred_shape']
+        pre_keypoint_3d = predictions['pred_keypoints_3d']
+        if requires_grad:
+            fake_data = (pred_cam, pre_keypoint_3d)
+        else:
+            fake_data = (pred_cam.detach(), pre_keypoint_3d.detach())
 
-#         return fake_data
+        return fake_data
 
-#     def make_real_data(self, data_batch: dict):
-#         transl = data_batch['adv_smpl_transl'].float()
-#         global_orient = data_batch['adv_smpl_global_orient']
-#         body_pose = data_batch['adv_smpl_body_pose']
-#         betas = data_batch['adv_smpl_betas'].float()
-#         pose = torch.cat((global_orient, body_pose), dim=-1).float()
-#         real_data = (transl, pose, betas)
-#         return real_data
+    def make_real_data(self, data_batch: dict):
+        transl = data_batch['adv_smpl_transl'].float()
+        global_orient = data_batch['adv_smpl_global_orient']
+        body_pose = data_batch['adv_smpl_body_pose']
+        betas = data_batch['adv_smpl_betas'].float()
+        pose = torch.cat((global_orient, body_pose), dim=-1).float()
+        real_data = (transl, pose, betas)
+        return real_data
 
-#     def prepare_targets(self, data_batch: dict):
-#         # Image Mesh Estimator does not need extra process for ground truth
-#         return data_batch
+    def prepare_targets(self, data_batch: dict):
+        # Image Mesh Estimator does not need extra process for ground truth
+        return data_batch
 
-#     def forward_test(self, img: torch.Tensor, img_metas: dict, **kwargs):
-#         """Defines the computation performed at every call when testing."""
-#         if self.backbone is not None:
-#             features = self.backbone(img)
-#         else:
-#             features = kwargs['features']
+    def forward_test(self, img: torch.Tensor, img_metas: dict, **kwargs):
+        """Defines the computation performed at every call when testing."""
+        if self.backbone is not None:
+            features = self.backbone(img)
+        else:
+            features = kwargs['features']
 
-#         if self.neck is not None:
-#             features = self.neck(features)
+        if self.neck is not None:
+            features = self.neck(features)
         
-#         predictions = self.head(features)
-#         pred_centermap = predictions['center_heatmap']
-#         idx = torch.argmax(pred_centermap.view(pred_centermap.shape[0], -1), dim=1)
-#         y = idx // pred_centermap.shape[2]
-#         x = idx % pred_centermap.shape[2]
-#         f = [i for i in range(pred_centermap.shape[0])]
-#         # pred_pose = predictions['pred_pose'][f, y, x, :, :, :]
-#         # pred_betas = predictions['pred_shape'][f, :, y, x]
-#         pre_keypoint_3d = predictions['pred_keypoints_3d'][f, :, y, x]
-#         pred_cam = predictions['pred_cam'][f, :, y, x]
-#         pred_output = self.body_model_test(
-#             # betas=pred_betas,
-#             # body_pose=pred_pose[:, 1:],
-#             pre_keypoint_3d=pre_keypoint_3d,
-#             global_orient=pred_pose[:, 0].unsqueeze(1),
-#             pose2rot=False)
+        predictions = self.head(features)
+        pred_centermap = predictions['center_heatmap']
+        idx = torch.argmax(pred_centermap.view(pred_centermap.shape[0], -1), dim=1)
+        y = idx // pred_centermap.shape[2]
+        x = idx % pred_centermap.shape[2]
+        f = [i for i in range(pred_centermap.shape[0])]
+        # pred_pose = predictions['pred_pose'][f, y, x, :, :, :]
+        # pred_betas = predictions['pred_shape'][f, :, y, x]
+        pre_keypoint_3d = predictions['pred_keypoints_3d'][f, :, y, x]
+        pred_cam = predictions['pred_cam'][f, :, y, x]
+        pred_output = self.body_model_test(
+            # betas=pred_betas,
+            # body_pose=pred_pose[:, 1:],
+            pre_keypoint_3d=pre_keypoint_3d,
+            global_orient=pred_pose[:, 0].unsqueeze(1),
+            pose2rot=False)
         
 
-#         if self.test_vis:
-#             if self.vis_gap_test % 1000 == 0:
-#                 target_img = (img[0, :, :, :].permute(1, 2, 0) + 1) / 2.0
-#                 target_img = target_img.cpu().numpy()
-#                 centerpos = int(torch.argmax(pred_centermap[0]))
-#                 center_x, center_y = (centerpos % 64 * 16, centerpos // 64 * 16)
-#                 target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
-#                 target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
-#                 pred_img = visualize_kp3d(torch.mean(pred_output['joints'], dim=0).detach().cpu().numpy()[None, :, :], data_source='h36m', return_array=True)[0] / 255.0
-#                 # smpl_img = visualize_smpl_pose(verts=pred_output['vertices'][0:1].cpu(), 
-#                 #                             body_model_config=dict(
-#                 #                                     type='SMPL',
-#                 #                                     keypoint_src='h36m',
-#                 #                                     keypoint_dst='h36m',
-#                 #                                     model_path='data/body_models',
-#                 #                                     joints_regressor='data/body_models/J_regressor_h36m.npy'),
-#                 #                             )
-#                 # smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
-#                 plt.imsave('vis_KP3D/test_%06d.jpg' % self.vis_test_id, 
-#                         #    np.concatenate([target_img, pred_img, smpl_img], axis=1))
-#                             np.concatenate([target_img, pred_img], axis=1))
+        if self.test_vis:
+            if self.vis_gap_test % 1000 == 0:
+                target_img = (img[0, :, :, :].permute(1, 2, 0) + 1) / 2.0
+                target_img = target_img.cpu().numpy()
+                centerpos = int(torch.argmax(pred_centermap[0]))
+                center_x, center_y = (centerpos % 64 * 16, centerpos // 64 * 16)
+                target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
+                target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
+                pred_img = visualize_kp3d(torch.mean(pred_output['joints'], dim=0).detach().cpu().numpy()[None, :, :], data_source='h36m', return_array=True)[0] / 255.0
+                # smpl_img = visualize_smpl_pose(verts=pred_output['vertices'][0:1].cpu(), 
+                #                             body_model_config=dict(
+                #                                     type='SMPL',
+                #                                     keypoint_src='h36m',
+                #                                     keypoint_dst='h36m',
+                #                                     model_path='data/body_models',
+                #                                     joints_regressor='data/body_models/J_regressor_h36m.npy'),
+                #                             )
+                # smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
+                plt.imsave('vis_KP3D/test_%06d.jpg' % self.vis_test_id, 
+                        #    np.concatenate([target_img, pred_img, smpl_img], axis=1))
+                            np.concatenate([target_img, pred_img], axis=1))
 
-#                 self.vis_test_id += 1
-#             self.vis_gap_test += 1
+                self.vis_test_id += 1
+            self.vis_gap_test += 1
 
-#         pred_vertices = pred_output['vertices']
-#         pred_keypoints_3d = pred_output['joints']
-#         all_preds = {}
-#         all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
-#         # all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
-#         # all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
-#         all_preds['camera'] = pred_cam.detach().cpu().numpy()
-#         all_preds['vertices'] = pred_vertices.detach().cpu().numpy()
-#         image_path = []
-#         for img_meta in img_metas:
-#             image_path.append(img_meta['image_path'])
-#         all_preds['image_path'] = image_path
-#         all_preds['image_idx'] = kwargs['sample_idx']
-#         return all_preds
+        pred_vertices = pred_output['vertices']
+        pred_keypoints_3d = pred_output['joints']
+        all_preds = {}
+        all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
+        # all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
+        # all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
+        all_preds['camera'] = pred_cam.detach().cpu().numpy()
+        all_preds['vertices'] = pred_vertices.detach().cpu().numpy()
+        image_path = []
+        for img_meta in img_metas:
+            image_path.append(img_meta['image_path'])
+        all_preds['image_path'] = image_path
+        all_preds['image_idx'] = kwargs['sample_idx']
+        return all_preds
 
 
 class VideoBodyModelEstimator(BodyModelEstimator):

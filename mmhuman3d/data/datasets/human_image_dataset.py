@@ -172,9 +172,9 @@ class HumanImageDataset(BaseDataset, metaclass=ABCMeta):
         info = {}
         info['img_prefix'] = None
         image_path = self.human_data['image_path'][idx]
-        if image_path[0] == 'S':
-            path_list = image_path.split('/')
-            image_path = os.path.join(path_list[1], path_list[0], path_list[2], path_list[3])
+        # if image_path[0] == 'S':
+        #     path_list = image_path.split('/')
+        #     image_path = os.path.join(path_list[1], path_list[0], path_list[2], path_list[3])
         info['image_path'] = os.path.join(self.data_prefix, 'datasets',
                                           self.dataset_name, image_path)
         if image_path.endswith('smc'):

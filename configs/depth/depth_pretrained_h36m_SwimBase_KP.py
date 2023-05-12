@@ -4,7 +4,7 @@ use_adversarial_train = True
 # evaluate
 evaluation = dict(interval=4, metric=['pa-mpjpe', 'mpjpe'])
 
-img_res = 256
+img_res = 384
 
 # optimizer
 optimizer = dict(
@@ -36,15 +36,17 @@ use_conv = True
 find_unused_parameters = True
 
 model = dict(
-    type='ImageBodyModelEstimator',
+    type='ImageBodyKPModelEstimator',
+    # type='ImageBodyModelEstimator',
+
     backbone=dict(
         type='DepthPretrained',
-        path='data/checkpoints/dpt_swin2_tiny_256.pt',
-        backbone="swin2t16_256", #swin2b24_384
+        path='data/checkpoints/dpt_swin2_base_384.pt',
+        backbone="swin2b24_384", #swin2b24_384 swin2t16_256
         non_negative=True,
         ),
     head=dict(
-        type='SimpleHead',
+        type='SimpleHeadKP',
         num_joints=24,
         num_input_features=256,
     ),
@@ -68,8 +70,10 @@ model = dict(
     loss_keypoints3d=dict(type='MSELoss', loss_weight=300),
     loss_keypoints2d=dict(type='MSELoss', loss_weight=300),
     loss_centermap=dict(type='MSELoss', loss_weight=60),
-    loss_smpl_pose=dict(type='MSELoss', loss_weight=60),
-    loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.001),
+
+    # loss_smpl_pose=dict(type='MSELoss', loss_weight=60),
+    # loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.001),
+
     # loss_segm_mask=dict(type='CrossEntropyLoss', loss_weight=60),
     # loss_camera=dict(type='CameraPriorLoss', loss_weight=1),
     test_vis=True,
@@ -94,9 +98,9 @@ train_pipeline = [
     dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='h36m'),
     dict(type='GetRandomScaleRotation', rot_factor=30, scale_factor=0),
     dict(type='MeshAffine', img_res=img_res),
-    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(64, 64), sigma=3, root_id=0),
+    # dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(64, 64), sigma=3, root_id=0),
     
-    # dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(96, 96), sigma=3, root_id=0),
+    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(96, 96), sigma=3, root_id=0),
 
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
@@ -131,8 +135,8 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=64, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
-    workers_per_gpu=10,
+    samples_per_gpu=4, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
+    workers_per_gpu=8,
     train=dict(
         # type='MixedDataset',
         # configs=[

@@ -4,7 +4,10 @@ use_adversarial_train = True
 # evaluate
 evaluation = dict(interval=4, metric=['pa-mpjpe', 'mpjpe'])
 
-img_res = 256
+# img_res = 256
+
+img_res = 384
+
 
 # optimizer
 optimizer = dict(
@@ -39,14 +42,16 @@ model = dict(
     type='ImageBodyModelEstimator',
     backbone=dict(
         type='DepthPretrained',
-        path='data/checkpoints/dpt_swin2_tiny_256.pt',
-        backbone="swin2t16_256", #swin2b24_384
+        path='data/checkpoints/dpt_swin2_base_384.pt',
+        backbone="swin2b24_384", #swin2b24_384 swin2t16_256
         non_negative=True,
         ),
     head=dict(
         type='SimpleHead',
         num_joints=24,
         num_input_features=256,
+        # num_input_features=384, ## change the input features
+
     ),
     body_model_train=dict(
         type='SMPL',
@@ -94,9 +99,11 @@ train_pipeline = [
     dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='h36m'),
     dict(type='GetRandomScaleRotation', rot_factor=30, scale_factor=0),
     dict(type='MeshAffine', img_res=img_res),
-    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(64, 64), sigma=3, root_id=0),
     
-    # dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(96, 96), sigma=3, root_id=0),
+    ## now base trained with the 64 * 64
+    # dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(64, 64), sigma=3, root_id=0),
+    
+    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(96, 96), sigma=3, root_id=0),
 
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
@@ -131,8 +138,8 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=64, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
-    workers_per_gpu=10,
+    samples_per_gpu=8, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
+    workers_per_gpu=8,
     train=dict(
         # type='MixedDataset',
         # configs=[
