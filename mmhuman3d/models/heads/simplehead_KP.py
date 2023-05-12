@@ -48,7 +48,7 @@ class SimpleHeadKP(BaseModule):
             BasicBlock(num_input_features, num_input_features),
             nn.Conv2d(num_input_features, 1, 1)
         )
-        self.keypoint_final_layer = nn.Conv2d(num_input_features, num_joints*6, 3)
+        self.keypoint_final_layer = nn.Conv2d(num_input_features, num_joints*3, 3)
 
 
         self.camera_head = nn.Sequential(
