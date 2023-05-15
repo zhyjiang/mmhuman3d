@@ -278,6 +278,7 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
         gt_keypoints3d = gt_keypoints3d[:, None, :, :].repeat(1,pred_keypoints3d.shape[1],1,1)
         loss = self.loss_keypoints3d(
             pred_keypoints3d, gt_keypoints3d, reduction_override='none')
+    
         keypoints3d_conf = keypoints3d_conf[:, None, :, :].repeat(1,pred_keypoints3d.shape[1],1,1)
 
         # If has_keypoints3d is not None, then computes the losses on the
@@ -288,6 +289,9 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         # has_keypoints3d is None when the key has_keypoints3d
         # is not in the datasets
+
+        import ipdb; ipdb.set_trace()
+
         if has_keypoints3d is None:
 
             valid_pos = keypoints3d_conf > 0

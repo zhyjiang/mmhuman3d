@@ -27,7 +27,11 @@ export CUDA_VISIBLE_DEVICES = 0
 #     --resume-from work_dirs/depth_Base_KP/epoch_8.pth --gpus 1
 
 
-python tools/train.py configs/depth/depth_pretrained_h36m_SwimBase_KP_depth.py \
-    --work-dir work_dirs/depth_Base_KP_Depth --gpus 1 \
+# python tools/train.py configs/depth/depth_pretrained_h36m_SwimBase_KP_depth.py \
+#     --work-dir work_dirs/depth_Base_KP_Depth --gpus 1 \
+#     # --resume-from work_dirs/depth_Base_KP/epoch_8.pth 
+    
+python tools/train.py configs/depth/depth_pretrained_h36m_SwimBase_KP_mpjpeloss.py \
+    --work-dir work_dirs/depth_pretrained_h36m_SwimBase_KP_mpjpeloss --gpus 1 \
     # --resume-from work_dirs/depth_Base_KP/epoch_8.pth 
     

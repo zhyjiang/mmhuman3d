@@ -64,6 +64,7 @@ class MSELoss(nn.Module):
             torch.Tensor: The calculated loss
         """
         assert reduction_override in (None, 'none', 'mean', 'sum')
+        # import ipdb; ipdb.set_trace()
         reduction = (
             reduction_override if reduction_override else self.reduction)
         loss = self.loss_weight * mse_loss(
@@ -184,12 +185,12 @@ class MPJPELoss(nn.Module):
         loss_weight (float): Weight of the loss. Default: 1.0.
     """
 
-    def __init__(self, use_target_weight=False, loss_weight=1.):
+    def __init__(self, use_target_weight=False,  reduction_override='none', loss_weight=1.):
         super().__init__()
         self.use_target_weight = use_target_weight
         self.loss_weight = loss_weight
 
-    def forward(self, output, target, target_weight=None):
+    def forward(self, output, target, target_weight=None,  reduction_override='none'):
         """Forward function.
 
         Note:
@@ -204,6 +205,12 @@ class MPJPELoss(nn.Module):
                 Weights across different joint types.
         """
 
+        # if self.use_target_weight:
+        #     assert target_weight is not None
+        #     loss = torch.mean(
+        #         torch.norm((output - target) * target_weight, dim=-1))
+        # else:
+        #     loss = torch.mean(torch.norm(output - target, dim=-1))
         if self.use_target_weight:
             assert target_weight is not None
             loss = torch.norm((output - target) * target_weight, dim=-1, keepdim=True)
