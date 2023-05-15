@@ -46,9 +46,9 @@ class SimpleHeadKP(BaseModule):
             nn.ReLU(inplace=True),
             BasicBlock(num_input_features, num_input_features),
             BasicBlock(num_input_features, num_input_features),
-            nn.Conv2d(num_input_features, 1, 1)
+            nn.Conv2d(num_input_features, num_input_features, kernel_size=3, padding=1)
         )
-        self.keypoint_final_layer = nn.Conv2d(num_input_features, num_joints*3, 3)
+        self.keypoint_final_layer = nn.Conv2d(num_input_features, num_joints*3, 1)
 
 
         self.camera_head = nn.Sequential(
@@ -72,13 +72,13 @@ class SimpleHeadKP(BaseModule):
         # pred_shape = self.shape_final_layer(pose_feat)
         pre_keypoint_3d = self.keypoint_head(x)
         pred_cam = self.camera_head(x)
+        pre_keypoint_3d = self.keypoint_final_layer(pre_keypoint_3d)
 
         # pred_pose = pred_pose.permute(0, 2, 3, 1)
         # b, h, w = (pred_pose.shape[0], pred_pose.shape[1], pred_pose.shape[2])
         # pred_pose = pred_pose.reshape(b * h * w * self.num_joints, 3, 2)
         # pred_rotmat = rot6dplane_to_rotmat(pred_pose).reshape(b, h, w, self.num_joints, 3, 3)
-
-        
+     
         output = {
             # 'pred_pose': pred_rotmat,
             # 'pred_shape': pred_shape,

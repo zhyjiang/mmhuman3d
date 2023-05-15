@@ -36,7 +36,7 @@ use_conv = True
 find_unused_parameters = True
 
 model = dict(
-    type='ImageBodyKPModelEstimator',
+    type='ImageBodyKPDepthModelEstimator',
     # type='ImageBodyModelEstimator',
 
     backbone=dict(

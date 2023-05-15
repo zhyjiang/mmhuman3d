@@ -36,7 +36,7 @@ use_conv = True
 find_unused_parameters = True
 
 model = dict(
-    type='ImageBodyKPModelEstimator',
+    type='ImageBodyKPDepthModelEstimator',
     # type='ImageBodyModelEstimator',
 
     backbone=dict(
@@ -67,7 +67,7 @@ model = dict(
         joints_regressor='data/body_models/J_regressor_h36m.npy'),
     img_res=img_res,
     convention='h36m',
-    loss_keypoints3d=dict(type='MSELoss', loss_weight=1),
+    loss_keypoints3d=dict(type='PoseRegLoss', loss_weight=1),
     ## 
     loss_keypoints2d=dict(type='MSELoss', loss_weight=1),
     loss_centermap=dict(type='MSELoss', loss_weight=1),
@@ -136,7 +136,7 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=12, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
+    samples_per_gpu=8, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
     workers_per_gpu=8,
     train=dict(
         # type='MixedDataset',

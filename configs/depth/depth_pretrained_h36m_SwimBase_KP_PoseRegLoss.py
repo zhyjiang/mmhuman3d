@@ -6,6 +6,7 @@ evaluation = dict(interval=4, metric=['pa-mpjpe', 'mpjpe'])
 
 img_res = 384
 
+save_vis_folder = "vis/depth_pretrained_h36m_SwimBase_KP_mpjpeloss"
 # optimizer
 optimizer = dict(
     backbone=dict(type='Adam', lr=1.0e-4),
@@ -67,7 +68,7 @@ model = dict(
         joints_regressor='data/body_models/J_regressor_h36m.npy'),
     img_res=img_res,
     convention='h36m',
-    loss_keypoints3d=dict(type='MSELoss', loss_weight=1),
+    loss_keypoints3d=dict(type='PoseRegLoss', loss_weight=1),
     ## 
     loss_keypoints2d=dict(type='MSELoss', loss_weight=1),
     loss_centermap=dict(type='MSELoss', loss_weight=1),

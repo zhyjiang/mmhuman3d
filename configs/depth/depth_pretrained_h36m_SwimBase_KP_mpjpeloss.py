@@ -6,6 +6,7 @@ evaluation = dict(interval=4, metric=['pa-mpjpe', 'mpjpe'])
 
 img_res = 384
 
+save_vis_folder = "vis/depth_pretrained_h36m_SwimBase_KP_mpjpeloss"
 # optimizer
 optimizer = dict(
     backbone=dict(type='Adam', lr=1.0e-4),

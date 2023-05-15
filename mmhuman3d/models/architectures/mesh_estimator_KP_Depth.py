@@ -108,7 +108,6 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.head = build_head(head)
         self.disc = build_discriminator(disc)
 
-        # import ipdb; ipdb.set_trace()
         self.body_model_train = build_body_model(body_model_train)
         self.body_model_test = build_body_model(body_model_test)
         self.convention = convention
@@ -120,7 +119,6 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
             self.vis_gap_train = 0
             self.vis_gap_test = 0
 
-        # import ipdb; ipdb.set_trace()
 
         # TODO: support HMR+
 
@@ -690,7 +688,7 @@ class ImageBodyModelEstimator(BodyModelKPEstimator):
         all_preds['image_idx'] = kwargs['sample_idx']
         return all_preds
 
-class ImageBodyKPModelEstimator(BodyModelKPEstimator):
+class ImageBodyKPDepthModelEstimator(BodyModelKPEstimator):
 
     def make_fake_data(self, predictions: dict, requires_grad: bool):
         pred_cam = predictions['pred_cam']
