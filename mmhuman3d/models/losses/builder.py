@@ -5,7 +5,7 @@ from mmcv.utils import Registry
 from .balanced_mse_loss import BMCLossMD
 from .cross_entropy_loss import CrossEntropyLoss
 from .gan_loss import GANLoss
-from .mse_loss import KeypointMSELoss, MSELoss
+from .mse_loss import KeypointMSELoss, MSELoss, MPJPELoss
 from .prior_loss import (
     CameraPriorLoss,
     JointPriorLoss,
@@ -25,6 +25,7 @@ LOSSES = Registry('losses')
 
 LOSSES.register_module(name='GANLoss', module=GANLoss)
 LOSSES.register_module(name='MSELoss', module=MSELoss)
+LOSSES.register_module(name='MPJPELoss', module=MPJPELoss)
 LOSSES.register_module(name='KeypointMSELoss', module=KeypointMSELoss)
 LOSSES.register_module(name='ShapePriorLoss', module=ShapePriorLoss)
 LOSSES.register_module(name='PoseRegLoss', module=PoseRegLoss)
