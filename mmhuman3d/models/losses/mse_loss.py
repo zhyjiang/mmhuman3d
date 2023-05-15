@@ -206,8 +206,8 @@ class MPJPELoss(nn.Module):
 
         if self.use_target_weight:
             assert target_weight is not None
-            loss = torch.norm((output - target) * target_weight, dim=-1)
+            loss = torch.norm((output - target) * target_weight, dim=-1, keepdim=True)
         else:
-            loss = torch.norm(output - target, dim=-1)
+            loss = torch.norm(output - target, dim=-1, keepdim=True)
 
         return loss * self.loss_weight
