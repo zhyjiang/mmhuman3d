@@ -86,7 +86,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                  backbone: Optional[Union[dict, None]] = None,
                  img_res: Optional[int] = 256,
                  test_vis: Optional[bool] = False,
-                 vis_folder: Optional[str] = None,
+                 vis_folder: Optional[str] = 'vis',
                  neck: Optional[Union[dict, None]] = None,
                  head: Optional[Union[dict, None]] = None,
                  disc: Optional[Union[dict, None]] = None,
@@ -116,8 +116,9 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.img_res = img_res
         self.test_vis = test_vis
         self.vis_folder = vis_folder
-        if os.path.exists(self.vis_folder):
-            os.makedirs(self.vis_folder)
+        # if os.path.exists(self.vis_folder):
+        #     os.makedirs(self.vis_folder)
+
         if self.test_vis:
             self.vis_train_id =  len(glob.glob("train_*.jpg"))
             self.vis_test_id = len(glob.glob("test_*.jpg"))
@@ -678,6 +679,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         gt_keypoints3d = targets['keypoints3d']
         gt_keypoints2d = targets['keypoints2d']
         # pred_pose N, 24, 3, 3
+        import ipdb; ipdb.set_trace()
         if self.body_model_train is not None:
             pred_output = self.body_model_train(
                 betas=pred_betas,
