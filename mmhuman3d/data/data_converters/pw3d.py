@@ -25,13 +25,13 @@ class Pw3dConverter(BaseModeConverter):
         modes (list): 'test' and/or 'train' for accepted modes
     """
 
-    ACCEPTED_MODES = ['train', 'test']
+    ACCEPTED_MODES = ['train', 'test','validation']
 
     def __init__(self, modes: List = []) -> None:
         super(Pw3dConverter, self).__init__(modes)
 
     def convert_by_mode(self, dataset_path: str, out_path: str,
-                        mode: str) -> dict:
+                        mode: str, enable_multi_human_data=False) -> dict:
         """
         Args:
             dataset_path (str): Path to directory where raw images and

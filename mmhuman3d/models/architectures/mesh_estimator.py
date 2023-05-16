@@ -85,6 +85,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                  backbone: Optional[Union[dict, None]] = None,
                  img_res: Optional[int] = 256,
                  test_vis: Optional[bool] = False,
+                 vis_folder: Optional[str] = None,
                  neck: Optional[Union[dict, None]] = None,
                  head: Optional[Union[dict, None]] = None,
                  disc: Optional[Union[dict, None]] = None,
@@ -113,6 +114,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.convention = convention
         self.img_res = img_res
         self.test_vis = test_vis
+        self.vis_folder = vis_folder
         if self.test_vis:
             self.vis_train_id =  len(glob.glob("train_*.jpg"))
             self.vis_test_id = len(glob.glob("test_*.jpg"))
@@ -702,7 +704,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                                                     model_path='data/body_models'),
                                             )
                 smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
-                plt.imsave('vis/train_%06d.jpg' % self.vis_train_id, 
+                plt.imsave(self.vis_folder + '/train_%06d.jpg' % self.vis_train_id, 
                            np.concatenate([target_img, gt_img, pred_img, smpl_img], axis=1))
                 # exit()
                 self.vis_train_id += 1
@@ -875,7 +877,7 @@ class ImageBodyModelEstimator(BodyModelEstimator):
                                                     joints_regressor='data/body_models/J_regressor_h36m.npy'),
                                             )
                 smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
-                plt.imsave('vis/test_%06d.jpg' % self.vis_test_id, 
+                plt.imsave(self.vis_folder +'/test_%06d.jpg' % self.vis_test_id, 
                            np.concatenate([target_img, pred_img, smpl_img], axis=1))
                 self.vis_test_id += 1
             self.vis_gap_test += 1

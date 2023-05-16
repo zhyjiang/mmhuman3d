@@ -85,6 +85,8 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
                  backbone: Optional[Union[dict, None]] = None,
                  img_res: Optional[int] = 256,
                  test_vis: Optional[bool] = False,
+                vis_folder: Optional[str] = None,
+
                  neck: Optional[Union[dict, None]] = None,
                  head: Optional[Union[dict, None]] = None,
                  disc: Optional[Union[dict, None]] = None,
@@ -114,6 +116,8 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.convention = convention
         self.img_res = img_res
         self.test_vis = test_vis
+        self.vis_folder = vis_folder
+
         if self.test_vis:
             self.vis_train_id =  len(glob.glob("train_*.jpg"))
             self.vis_test_id = len(glob.glob("test_*.jpg"))
@@ -290,7 +294,7 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
         # has_keypoints3d is None when the key has_keypoints3d
         # is not in the datasets
 
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
         if has_keypoints3d is None:
 
@@ -510,7 +514,7 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
                 pred_img = visualize_kp3d(pred_keypoints3d[0, 11:12].detach().cpu().numpy(), data_source='h36m', return_array=True)[0] / 255.0
                 # plt.imsave('vis/train_%06d.jpg' % self.vis_train_id, 
                         #    np.concatenate([target_img, gt_img, pred_img], axis=1))
-                plt.imsave('vis_KP3D/train_%06d.jpg' % self.vis_train_id, 
+                plt.imsave( self.vis_folder +'/train_%06d.jpg' % self.vis_train_id, 
                            np.concatenate([target_img, gt_img, pred_img], axis=1))
                 # exit()
                 self.vis_train_id += 1
@@ -674,7 +678,7 @@ class ImageBodyModelEstimator(BodyModelKPEstimator):
                                                     joints_regressor='data/body_models/J_regressor_h36m.npy'),
                                             )
                 smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
-                plt.imsave('vis/test_%06d.jpg' % self.vis_test_id, 
+                plt.imsave(self.vis_folder + '/test_%06d.jpg' % self.vis_test_id, 
                            np.concatenate([target_img, pred_img, smpl_img], axis=1))
                 self.vis_test_id += 1
             self.vis_gap_test += 1
@@ -767,7 +771,7 @@ class ImageBodyKPModelEstimator(BodyModelKPEstimator):
                 #                                     joints_regressor='data/body_models/J_regressor_h36m.npy'),
                 #                             )
                 # smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
-                plt.imsave('vis_KP3D/test_%06d.jpg' % self.vis_test_id, 
+                plt.imsave(self.vis_folder + '/test_%06d.jpg' % self.vis_test_id, 
                         #    np.concatenate([target_img, pred_img, smpl_img], axis=1))
                             np.concatenate([target_img, pred_img], axis=1))
 
