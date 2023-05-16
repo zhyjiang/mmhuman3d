@@ -747,15 +747,8 @@ class ImageBodyKPModelEstimator(BodyModelKPEstimator):
         f = [i for i in range(pred_centermap.shape[0])]
         # pred_pose = predictions['pred_pose'][f, y, x, :, :, :]
         # pred_betas = predictions['pred_shape'][f, :, y, x]
-        pre_keypoint_3d = predictions['pred_KP'][f, :, y, x]
+        pred_keypoint_3d = predictions['pred_KP'][f, :, y, x]
         pred_cam = predictions['pred_cam'][f, :, y, x]
-        pred_output = self.body_model_test(
-            # betas=pred_betas,
-            # body_pose=pred_pose[:, 1:],
-            pre_keypoint_3d=pre_keypoint_3d,
-            global_orient=pred_cam[:, 0].unsqueeze(1),
-            pose2rot=False)
-        
 
         if self.test_vis:
             if self.vis_gap_test % 500 == 0:
@@ -765,16 +758,7 @@ class ImageBodyKPModelEstimator(BodyModelKPEstimator):
                 center_x, center_y = (centerpos % 64 * 16, centerpos // 64 * 16)
                 target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
                 target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
-                pred_img = visualize_kp3d(torch.mean(pred_output['joints'], dim=0).detach().cpu().numpy()[None, :, :], data_source='h36m', return_array=True)[0] / 255.0
-                # smpl_img = visualize_smpl_pose(verts=pred_output['vertices'][0:1].cpu(), 
-                #                             body_model_config=dict(
-                #                                     type='SMPL',
-                #                                     keypoint_src='h36m',
-                #                                     keypoint_dst='h36m',
-                #                                     model_path='data/body_models',
-                #                                     joints_regressor='data/body_models/J_regressor_h36m.npy'),
-                #                             )
-                # smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
+                pred_img = visualize_kp3d(pred_keypoint_3d, data_source='h36m', return_array=True)[0] / 255.0
                 plt.imsave(self.vis_folder + '/test_%06d.jpg' % self.vis_test_id, 
                         #    np.concatenate([target_img, pred_img, smpl_img], axis=1))
                             np.concatenate([target_img, pred_img], axis=1))
@@ -782,14 +766,11 @@ class ImageBodyKPModelEstimator(BodyModelKPEstimator):
                 self.vis_test_id += 1
             self.vis_gap_test += 1
 
-        pred_vertices = pred_output['vertices']
-        pred_keypoints_3d = pred_output['joints']
         all_preds = {}
-        all_preds['keypoints_3d'] = pred_keypoints_3d.detach().cpu().numpy()
+        all_preds['keypoints_3d'] = pred_keypoint_3d.detach().cpu().numpy()
         # all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
         # all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
         all_preds['camera'] = pred_cam.detach().cpu().numpy()
-        all_preds['vertices'] = pred_vertices.detach().cpu().numpy()
         image_path = []
         for img_meta in img_metas:
             image_path.append(img_meta['image_path'])
