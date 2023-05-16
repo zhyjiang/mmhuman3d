@@ -7,7 +7,7 @@ evaluation = dict(interval=4, metric=['pa-mpjpe', 'mpjpe'])
 # img_res = 256
 
 img_res = 384
-
+vis_folder = 'vis/vis_3dpw'
 
 # optimizer
 optimizer = dict(
@@ -78,6 +78,7 @@ model = dict(
     # loss_segm_mask=dict(type='CrossEntropyLoss', loss_weight=60),
     # loss_camera=dict(type='CameraPriorLoss', loss_weight=1),
     test_vis=True,
+    vis_folder=vis_folder,
 )
 
 # dataset settings
@@ -157,8 +158,8 @@ data = dict(
         dataset_name='pw3d',
         data_prefix='data',
         pipeline=train_pipeline,
-        whole_image=True,
-        convention='pw3d',
+        # whole_image=True,
+        # convention='pw3d',
         ann_file='pw3d_validation.npz'
     ),
     test=dict(

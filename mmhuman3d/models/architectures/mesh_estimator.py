@@ -27,6 +27,7 @@ from ..losses.builder import build_loss
 from ..necks.builder import build_neck
 from ..registrants.builder import build_registrant
 from .base_architecture import BaseArchitecture
+import os
 
 
 def set_requires_grad(nets, requires_grad=False):
@@ -115,6 +116,8 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.img_res = img_res
         self.test_vis = test_vis
         self.vis_folder = vis_folder
+        if os.path.exists(self.vis_folder):
+            os.makedirs(self.vis_folder)
         if self.test_vis:
             self.vis_train_id =  len(glob.glob("train_*.jpg"))
             self.vis_test_id = len(glob.glob("test_*.jpg"))
