@@ -12,7 +12,7 @@ DATASET_CONFIGS = dict(
         type='CocoWholebodyConverter', modes=['train', 'val'], prefix='coco'),
     crowdpose=dict(
         type='CrowdposeConverter', modes=['train', 'val', 'test', 'trainval']),
-    pw3d=dict(type='Pw3dConverter', modes=['train', 'test']),
+    pw3d=dict(type='Pw3dConverter', modes=['validation']),
     mpii=dict(type='MpiiConverter'),
     h36m_p1=dict(
         type='H36mConverter',

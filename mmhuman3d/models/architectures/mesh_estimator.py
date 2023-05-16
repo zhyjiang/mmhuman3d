@@ -116,8 +116,8 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.img_res = img_res
         self.test_vis = test_vis
         self.vis_folder = vis_folder
-        # if os.path.exists(self.vis_folder):
-        #     os.makedirs(self.vis_folder)
+        if not os.path.exists(self.vis_folder):
+            os.makedirs(self.vis_folder)
 
         if self.test_vis:
             self.vis_train_id =  len(glob.glob("train_*.jpg"))

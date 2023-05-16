@@ -685,6 +685,8 @@ class ImageBodyKPModelEstimator(BodyModelKPEstimator):
         all_preds['keypoints_3d'] = pred_keypoint_3d.detach().cpu().numpy()
         # all_preds['smpl_pose'] = pred_pose.detach().cpu().numpy()
         # all_preds['smpl_beta'] = pred_betas.detach().cpu().numpy()
+        all_preds['smpl_pose'] = pred_keypoint_3d.detach().cpu().numpy()
+        all_preds['smpl_beta'] = pred_keypoint_3d.detach().cpu().numpy()
         all_preds['camera'] = pred_cam.detach().cpu().numpy()
         image_path = []
         for img_meta in img_metas:

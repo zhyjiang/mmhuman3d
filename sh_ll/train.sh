@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=0
+
 
 
 # python tools/train.py configs/depth/depth_pretrained_h36m.py --work-dir work_dirs/depth --gpus 1 --no-validate
@@ -10,10 +10,10 @@ export CUDA_VISIBLE_DEVICES=0
 #     --work-dir work_dirs/depth_swin2_base  \
 #     --gpus 1
 
-python tools/train.py configs/depth/depth_pretrained_h36m.py \
-    --work-dir work_dirs/depth_from_zy_Ba_64  \
-    --resume-from work_dirs/depth_from_zy/epoch_36.pth  \
-    --gpus 1
+# python tools/train.py configs/depth/depth_pretrained_h36m.py \
+#     --work-dir work_dirs/depth_from_zy_Ba_64  \
+#     --resume-from work_dirs/depth_from_zy/epoch_36.pth  \
+#     --gpus 1
 
 
 # python tools/train.py configs/depth/depth_pretrained_h36m_SwimBase_KP.py \
@@ -26,5 +26,7 @@ python tools/train.py configs/depth/depth_pretrained_h36m.py \
 #     --gpus 1
 
 
-
-# bash ./tools/slurm_train.sh gpu dist configs/depth/depth_pretrained_h36m.py work_dirs/test_dist 2 --no-validate
+export CUDA_VISIBLE_DEVICES=7
+python tools/train.py configs/depth/depth_pretrained_3DPW_SwimBase.py \
+    --work-dir work_dirs/Depth_3DPW  \
+    --gpus 1

@@ -44,8 +44,13 @@ echo $CUDA_VISIBLE_DEVICES
 #     --resume-from work_dirs/depth_swin2_base/epoch_55.pth \
 #     --gpus 1
 
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=0
 
-python tools/train.py configs/depth/depth_pretrained_h36m_SwimBase_KP.py \
-    --work-dir work_dirs/depth_swin2_base_center96_KP  \
-    --gpus 1
+# python tools/train.py configs/depth/depth_pretrained_h36m_SwimBase_KP.py \
+#     --work-dir work_dirs/depth_swin2_base_center96_KP  \
+#     --gpus 1
+
+
+python tools/test.py configs/depth/depth_pretrained_h36m_SwimBase.py \
+    --work-dir work_dirs/depth_swin2_base_center96  \
+    work_dirs/depth_swin2_base_center96/epoch_20.pth 

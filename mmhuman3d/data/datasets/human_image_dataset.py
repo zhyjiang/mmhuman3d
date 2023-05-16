@@ -408,7 +408,7 @@ class HumanImageDataset(BaseDataset, metaclass=ABCMeta):
                     global_orient=global_orient,
                     gender=gender)
                 gt_keypoints3d = gt_output['joints'].detach().cpu().numpy()
-                gt_keypoints3d_mask = np.ones((len(pred_keypoints3d), 24))
+                gt_keypoints3d_mask = np.ones((len(pred_keypoints3d), 24))            
             elif self.dataset_name == 'h36m':
                 _, h36m_idxs, _ = get_mapping('human_data', 'h36m')
                 gt_keypoints3d = \
