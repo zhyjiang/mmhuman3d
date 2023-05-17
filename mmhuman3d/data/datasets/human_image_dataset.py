@@ -111,7 +111,7 @@ class HumanImageDataset(BaseDataset, metaclass=ABCMeta):
             use_human_data = False
         if use_human_data:
             self.human_data = HumanData.fromfile(self.ann_file)
-
+            # import ipdb; ipdb.set_trace()
             if self.human_data.check_keypoints_compressed():
                 self.human_data.decompress_keypoints()
             # change keypoint from 'human_data' to the given convention

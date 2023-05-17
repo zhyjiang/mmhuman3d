@@ -177,7 +177,7 @@ data = dict(
         data_prefix='data',
         pipeline=test_pipeline,
         whole_image=True,
-        ann_file='sample.npz'
+        ann_file='h36m_valid_protocol1.npz'
     ),
     val=dict(
         type=dataset_type,
