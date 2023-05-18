@@ -33,6 +33,7 @@ checkpoint_config = dict(interval=1)
 width = 32
 downsample = False
 use_conv = True
+num_joints = 24
 
 find_unused_parameters = True
 
@@ -46,19 +47,18 @@ model = dict(
         ),
     head=dict(
         type='SimpleHead',
-        num_joints=24,
+        num_joints=num_joints,
         num_input_features=256,
         # num_input_features=384, ## change the input features
 
     ),
     body_model_train=dict(
         type='SMPL',
-        keypoint_src='h36m',
-        keypoint_dst='h36m',
+        keypoint_src='smpl_54',
+        keypoint_dst='smpl_24',
         model_path='data/body_models/smpl',
-        # keypoint_approximate=True,
-        # extra_joints_regressor='data/body_models/J_regressor_extra.npy'
-        joints_regressor='data/body_models/J_regressor_h36m.npy',
+        keypoint_approximate=True,
+        extra_joints_regressor='data/body_models/J_regressor_extra.npy',
         ),
     body_model_test=dict(
         type='SMPL',
@@ -67,9 +67,10 @@ model = dict(
         model_path='data/body_models/smpl',
         joints_regressor='data/body_models/J_regressor_h36m.npy'),
     img_res=img_res,
-    convention='h36m',
-    loss_keypoints3d=dict(type='MSELoss', loss_weight=300),
-    loss_keypoints2d=dict(type='MSELoss', loss_weight=300),
+    convention='smpl_24',
+    num_joints=24,
+    # loss_keypoints3d=dict(type='MSELoss', loss_weight=300),
+    # loss_keypoints2d=dict(type='MSELoss', loss_weight=300),
     loss_centermap=dict(type='MSELoss', loss_weight=60),
     loss_smpl_pose=dict(type='MSELoss', loss_weight=60),
     loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.001),
@@ -80,14 +81,14 @@ model = dict(
 )
 
 # dataset settings
-dataset_type = 'HumanImageDataset'
+dataset_type = 'HumansImageDataset'
 img_norm_cfg = dict(
     mean=[255 / 2.0, 255 / 2.0, 255 / 2.0], std=[255 / 2.0, 255 / 2.0, 255 / 2.0], to_rgb=True)
 # img_norm_cfg = dict(mean=[0, 0, 0], std=[255.0, 255.0, 255.0], to_rgb=True)
 data_keys = [
-    'has_smpl', 'has_keypoints3d', 'has_keypoints2d', 'smpl_body_pose',
-    'smpl_global_orient', 'smpl_betas', 'smpl_transl', 'keypoints2d',
-    'keypoints3d', 'sample_idx', 'bbox_xywh', 'centermap'
+    'has_smpl', 'has_keypoints3d', 'has_keypoints2d', 'smpl_body_pose_map',
+    'smpl_global_orient_map', 'smpl_betas_map', 'smpl_transl', 'sample_idx', 
+    'centermap', 'valid_mask'
 ]
 train_pipeline = [
     dict(type='LoadImageFromFile'),
@@ -95,14 +96,14 @@ train_pipeline = [
     # dict(
     #     type='SyntheticOcclusion',
     #     occluders_file='data/occluders/pascal_occluders.npy'),
-    dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='h36m'),
-    dict(type='GetRandomScaleRotation', rot_factor=30, scale_factor=0),
-    dict(type='MeshAffine', img_res=img_res),
+    # dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='h36m'),
+    dict(type='GetRandomScaleRotation', rot_factor=15, scale_factor=0),
+    dict(type='MultiMeshAffine', img_res=img_res),
     
     ## now base trained with the 64 * 64
     # dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(64, 64), sigma=3, root_id=0),
     
-    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(96, 96), sigma=3, root_id=0),
+    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(img_res // 4, img_res // 4), sigma=3),
 
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
@@ -138,8 +139,8 @@ inference_pipeline = [
 
 data = dict(
     samples_per_gpu=12, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
-    workers_per_gpu=0,
-    persistent_workers=False,
+    workers_per_gpu=8,
+    # persistent_workers=False,
     train=dict(
         # type='MixedDataset',
         # configs=[

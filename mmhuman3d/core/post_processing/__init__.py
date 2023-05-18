@@ -4,6 +4,7 @@ from .smooth.oneeuro_filter import OneEuroFilter
 from .smooth.savgol_filter import SGFilter
 from .smooth.smoothnet import SmoothNetFilter
 from .speed_up.deciwatch import DeciWatchPostProcessing
+from .parser.heatmap_parser import HeatmapParser
 
 __all__ = [
     'build_post_processing',
@@ -12,4 +13,5 @@ __all__ = [
     'Gaus1dFilter',
     'SmoothNetFilter',
     'DeciWatchPostProcessing',
+    'HeatmapParser'
 ]

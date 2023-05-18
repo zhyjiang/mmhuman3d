@@ -1,5 +1,6 @@
 import math
 import random
+from typing import Any
 
 import cv2
 import mmcv
@@ -744,46 +745,78 @@ class GenerateCenterTarget:
                             self.img_res // self.heatmap_size[1])
         self.sigma = sigma
         self.root_id = root_id
+        
+    def gassuain_generate(self, target, joint, radius, value=None):
+        mu_x = int(joint[0] / self.feat_stride[0] + 0.5)
+        mu_y = int(joint[1] / self.feat_stride[1] + 0.5)
+        # Check that any part of the gaussian is in-bounds
+        ul = [int(mu_x - radius), int(mu_y - radius)]
+        br = [int(mu_x + radius + 1), int(mu_y + radius + 1)]
+
+        # Image range
+        img_x = max(0, ul[0]), min(br[0], self.heatmap_size[0])
+        img_y = max(0, ul[1]), min(br[1], self.heatmap_size[1])
+
+        # The gaussian is not normalized, we want the center value to equal 1
+        if value is None:
+            # Generate gaussian
+            size = 2 * radius + 1
+            x = np.arange(0, size, 1, np.float32)
+            y = x[:, np.newaxis]
+            x0 = y0 = size // 2
+            g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * self.sigma ** 2))
+
+            # Usable gaussian range
+            g_x = max(0, -ul[0]), min(br[0], self.heatmap_size[0]) - ul[0]
+            g_y = max(0, -ul[1]), min(br[1], self.heatmap_size[1]) - ul[1]
+
+            target[img_y[0]:img_y[1], img_x[0]:img_x[1]] = \
+                np.max(np.stack([target[img_y[0]:img_y[1], img_x[0]:img_x[1]], 
+                                g[g_y[0]:g_y[1], g_x[0]:g_x[1]]]), axis=0)
+        else:
+            target[img_y[0]:img_y[1], img_x[0]:img_x[1]] = value
+        return target
 
     def __call__(self, results):
         '''
         :param joints:  [num_joints, 3]
         :return: target
         '''
-        joints = results['keypoints2d']
+        joints = results['human_center']
         target = np.zeros((self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
-        # target[30:34, 30:34] = 1
+        valid_mask = np.zeros((self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
+        if results['has_smpl'] == 1:
+            smpl_pose_target = np.zeros((self.heatmap_size[1], self.heatmap_size[0], 23, 3), dtype=np.float32)
+            smpl_betas_target = np.zeros((self.heatmap_size[1], self.heatmap_size[0], 10), dtype=np.float32)
+            smpl_globel_orient_target = np.zeros((self.heatmap_size[1], self.heatmap_size[0], 3), dtype=np.float32)
 
-        tmp_size = self.sigma * 3
-
-        joint_id = self.root_id
-        mu_x = int(joints[joint_id][0] / self.feat_stride[0] + 0.5)
-        mu_y = int(joints[joint_id][1] / self.feat_stride[1] + 0.5)
-        # Check that any part of the gaussian is in-bounds
-        ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
-        br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
-
-        # # Generate gaussian
-        size = 2 * tmp_size + 1
-        x = np.arange(0, size, 1, np.float32)
-        y = x[:, np.newaxis]
-        x0 = y0 = size // 2
-        # The gaussian is not normalized, we want the center value to equal 1
-        g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * self.sigma ** 2))
-
-        # Usable gaussian range
-        g_x = max(0, -ul[0]), min(br[0], self.heatmap_size[0]) - ul[0]
-        g_y = max(0, -ul[1]), min(br[1], self.heatmap_size[1]) - ul[1]
-        # Image range
-        img_x = max(0, ul[0]), min(br[0], self.heatmap_size[0])
-        img_y = max(0, ul[1]), min(br[1], self.heatmap_size[1])
-
-        target[img_y[0]:img_y[1], img_x[0]:img_x[1]] = \
-            g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
-
+        for human_idx, joint in enumerate(joints):
+            target = self.gassuain_generate(target, joint, self.sigma * 3)
+            valid_mask = self.gassuain_generate(valid_mask, joint, self.sigma)
+            if results['has_smpl'] == 1:
+                smpl_pose_target = self.gassuain_generate(smpl_pose_target, joint, self.sigma, results['smpl_body_pose'][human_idx])
+                smpl_betas_target = self.gassuain_generate(smpl_betas_target, joint, self.sigma, results['smpl_betas'][human_idx])
+                smpl_globel_orient_target = self.gassuain_generate(smpl_globel_orient_target, 
+                                                                   joint, 
+                                                                   self.sigma, 
+                                                                   results['smpl_global_orient'][human_idx])
+            
         results['centermap'] = target
+        results['valid_mask'] = valid_mask
+        if results['has_smpl'] == 1:
+            results['smpl_body_pose_map'] = smpl_pose_target
+            results['smpl_betas_map'] = smpl_betas_target
+            results['smpl_global_orient_map'] = smpl_globel_orient_target
         return results
 
+@PIPELINES.register_module()
+class RemoveItems:
+    def __init__(self, keys):
+        self.keys = keys
+    
+    def __call__(self, results):
+        for key in self.keys:
+            results.pop(key)
 
 @PIPELINES.register_module()
 class MeshAffine:
@@ -844,6 +877,86 @@ class MeshAffine:
             pose = _rotate_smpl_pose(pose, r)
             results['smpl_global_orient'] = pose[:3]
             results['smpl_body_pose'] = pose[3:].reshape((-1, 3))
+
+        if 'smplx_global_orient' in results:
+            global_orient = results['smplx_global_orient'].copy()
+            global_orient = _rotate_smpl_pose(global_orient, r)
+            results['smplx_global_orient'] = global_orient
+
+        results['crop_trans'] = crop_trans
+        results['inv_trans'] = inv_trans
+        return results
+
+@PIPELINES.register_module()
+class MultiMeshAffine:
+    """Affine transform the image to get input image.
+
+    Affine transform the 2D keypoints, 3D kepoints. Required keys: 'img',
+    'pose', 'img_shape', 'rotation' and 'center'. Modifies key: 'img',
+    ''keypoints2d', 'keypoints3d', 'pose'.
+    """
+
+    def __init__(self, img_res):
+        if isinstance(img_res, tuple):
+            self.image_size = img_res
+        else:
+            self.image_size = np.array([img_res, img_res])
+
+    def __call__(self, results):
+        c = results['center']
+        s = results['scale']
+        r = results['rotation']
+        trans = get_affine_transform(c, s, r, self.image_size)
+        inv_trans = get_affine_transform(c, s, 0., self.image_size, inv=True)
+        crop_trans = get_affine_transform(c, s, 0., self.image_size)
+
+        if 'img' in results:
+            img = results['img']
+
+            # img before affine
+            ori_img = img.copy()
+            results['crop_transform'] = trans
+            results['ori_img'] = ori_img
+            results['img_fields'] = ['img', 'ori_img']
+
+            img = cv2.warpAffine(
+                img,
+                trans, (int(self.image_size[0]), int(self.image_size[1])),
+                flags=cv2.INTER_LINEAR)
+            results['img'] = img
+
+        if 'keypoints2d' in results:
+            keypoints2d_ = results['keypoints2d'].copy()
+            for idx, keypoints2d in enumerate(keypoints2d_):
+                num_keypoints = len(keypoints2d)
+                for i in range(num_keypoints):
+                    if keypoints2d[i][2] > 0.0:
+                        keypoints2d_[idx][i][:2] = \
+                            affine_transform(keypoints2d[i][:2], trans)
+            results['keypoints2d'] = keypoints2d_
+        
+        if 'bbox_xywh' in results:
+            bbox_xywh_ = results['bbox_xywh'].copy()
+            for idx, bbox_xywh in enumerate(bbox_xywh_):
+                bbox_xywh_[idx, :2] = \
+                    affine_transform(bbox_xywh[:2] + bbox_xywh[2:4] / 2, trans)
+            results['human_center'] = bbox_xywh_[:, :2]
+
+        if 'keypoints3d' in results:
+            keypoints3d_ = results['keypoints3d'].copy()
+            for idx, keypoints3d in enumerate(keypoints3d_):
+                keypoints3d_[idx, :, :3] = _rotate_joints_3d(keypoints3d[:, :3], r)
+            results['keypoints3d'] = keypoints3d_
+
+        if 'smpl_body_pose' in results:
+            global_orient = results['smpl_global_orient'].copy()
+            body_pose = results['smpl_body_pose'].copy()
+            body_pose = body_pose.reshape(body_pose.shape[0], -1)
+            pose = np.concatenate((global_orient, body_pose), axis=-1)
+            for i in range(len(pose)):
+                pose[i] = _rotate_smpl_pose(pose[i], r)
+            results['smpl_global_orient'] = pose[:, :3]
+            results['smpl_body_pose'] = pose[:, 3:].reshape((pose.shape[0], -1, 3))
 
         if 'smplx_global_orient' in results:
             global_orient = results['smplx_global_orient'].copy()

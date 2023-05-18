@@ -59,6 +59,7 @@ def train_model(model,
             num_gpus=len(cfg.gpu_ids),
             dist=distributed,
             round_up=True,
+            persistent_workers=getattr(cfg.data, "persistent_workers", True),
             seed=cfg.seed) for ds in dataset
     ]
 
@@ -151,6 +152,7 @@ def train_model(model,
             workers_per_gpu=cfg.data.workers_per_gpu,
             dist=distributed,
             shuffle=False,
+            persistent_workers=getattr(cfg.data, "persistent_workers", True),
             round_up=True)
         eval_cfg = cfg.get('evaluation', {})
         eval_cfg['by_epoch'] = cfg.runner['type'] != 'IterBasedRunner'

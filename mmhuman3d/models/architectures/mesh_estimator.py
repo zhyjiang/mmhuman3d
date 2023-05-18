@@ -12,6 +12,7 @@ import mmhuman3d.core.visualization.visualize_smpl as visualize_smpl
 from mmhuman3d.core.visualization.visualize_smpl import visualize_smpl_pose
 from mmhuman3d.core.visualization.visualize_keypoints3d import visualize_kp3d
 from mmhuman3d.core.conventions.keypoints_mapping import get_keypoint_idx
+from mmhuman3d.core.post_processing.parser.heatmap_parser import HeatmapParser
 from mmhuman3d.models.utils import FitsDict
 from mmhuman3d.utils.geometry import (
     batch_rodrigues,
@@ -90,6 +91,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                  neck: Optional[Union[dict, None]] = None,
                  head: Optional[Union[dict, None]] = None,
                  disc: Optional[Union[dict, None]] = None,
+                 num_joints: Optional[int] = 24,
                  registration: Optional[Union[dict, None]] = None,
                  body_model_train: Optional[Union[dict, None]] = None,
                  body_model_test: Optional[Union[dict, None]] = None,
@@ -114,6 +116,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.body_model_test = build_body_model(body_model_test)
         self.convention = convention
         self.img_res = img_res
+        self.num_joints = num_joints
         self.test_vis = test_vis
         self.vis_folder = vis_folder
         if not os.path.exists(self.vis_folder):
@@ -149,6 +152,8 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.loss_centermap = build_loss(loss_centermap)
         set_requires_grad(self.body_model_train, False)
         set_requires_grad(self.body_model_test, False)
+        
+        self.parser = HeatmapParser(5)
     
     def val_step(self, data_batch):
         if self.backbone is not None:
@@ -562,25 +567,29 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         return loss
 
     def compute_smpl_pose_loss(self, pred_rotmat: torch.Tensor,
-                               gt_pose: torch.Tensor, has_smpl: torch.Tensor):
+                               gt_pose: torch.Tensor, has_smpl: torch.Tensor,
+                               weight: torch.Tensor):
         """Compute loss for smpl pose."""
         conf = has_smpl.float().view(-1)
         valid_pos = conf > 0
         if conf[valid_pos].numel() == 0:
             return torch.Tensor([0]).type_as(gt_pose)
-        pred_rotmat = pred_rotmat[valid_pos]
+        bs = torch.sum(valid_pos)
+        pred_rotmat = pred_rotmat[valid_pos].view(bs, -1, 24, 3, 3)
         gt_pose = gt_pose[valid_pos]
         conf = conf[valid_pos]
-        gt_rotmat = batch_rodrigues(gt_pose.view(-1, 3)).view(-1, 24, 3, 3)
+        gt_rotmat = batch_rodrigues(gt_pose.view(-1, 3)).view(bs, -1, 24, 3, 3)
         loss = self.loss_smpl_pose(
             pred_rotmat, gt_rotmat, reduction_override='none')
+        loss = loss.view(loss.shape[0], loss.shape[1], -1) * weight[valid_pos].view(bs, -1).unsqueeze(2)
         loss = loss.view(loss.shape[0], -1).mean(-1)
         loss = torch.mean(loss * conf)
         return loss
 
     def compute_smpl_betas_loss(self, pred_betas: torch.Tensor,
                                 gt_betas: torch.Tensor,
-                                has_smpl: torch.Tensor):
+                                has_smpl: torch.Tensor,
+                                weight: torch.Tensor):
         """Compute loss for smpl betas."""
         conf = has_smpl.float().view(-1)
         valid_pos = conf > 0
@@ -591,6 +600,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         conf = conf[valid_pos]
         loss = self.loss_smpl_betas(
             pred_betas, gt_betas, reduction_override='none')
+        loss = loss * weight.unsqueeze(-1)
         loss = loss.view(loss.shape[0], -1).mean(-1)
         loss = torch.mean(loss * conf)
         return loss
@@ -662,34 +672,32 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
 
         loss = self.loss_segm_mask(pred_heatmap_valid, gt_sem_mask)
         return loss
-
+    
+    
     def compute_losses(self, predictions: dict, targets: dict):
         """Compute losses."""
         batch_size = predictions['pred_shape'].shape[0]
-        mask = targets['centermap'] > 0.7
-        num_sample = torch.sum(mask.view(mask.shape[0], -1), dim=1)
-        if torch.sum(num_sample) / num_sample.shape[0] != num_sample[0]:
-            mask = targets['centermap'] >= 1
-            num_sample = torch.sum(mask.view(mask.shape[0], -1), dim=1)
-        pred_betas = predictions['pred_shape'].permute(0, 2, 3, 1)[mask, ...].view(-1, 10)
-        pred_pose = predictions['pred_pose'][mask, ...].view(-1, 24, 3, 3)
-        pred_cam = predictions['pred_cam'].permute(0, 2, 3, 1)[mask, ...].view(-1, 3)
+        pred_betas = predictions['pred_shape'].permute(0, 2, 3, 1)
+        pred_pose = predictions['pred_pose']
+        pred_cam = predictions['pred_cam'].permute(0, 2, 3, 1)
         pred_centermap = predictions['center_heatmap']
-
-        gt_keypoints3d = targets['keypoints3d']
-        gt_keypoints2d = targets['keypoints2d']
+        mask = targets['centermap'] == 1
+        
+        if 'keypoints3d' in targets:
+            gt_keypoints3d = targets['keypoints3d']
+            gt_keypoints2d = targets['keypoints2d']
         # pred_pose N, 24, 3, 3
         # import ipdb; ipdb.set_trace()
         if self.body_model_train is not None:
             pred_output = self.body_model_train(
-                betas=pred_betas,
-                body_pose=pred_pose[:, 1:],
-                global_orient=pred_pose[:, 0].unsqueeze(1),
+                betas=pred_betas[mask],
+                body_pose=pred_pose[mask][:, 1:],
+                global_orient=pred_pose[mask][:, 0].unsqueeze(1),
                 pose2rot=False,
-                num_joints=gt_keypoints2d.shape[1])
+                num_joints=self.num_joints)
             pred_keypoints3d = pred_output['joints']
             pred_vertices = pred_output['vertices']
-        pred_keypoints3d = pred_keypoints3d.view(batch_size, -1, 17, 3)
+        pred_keypoints3d = pred_keypoints3d.view(torch.sum(mask), -1, self.num_joints, 3)
 
         if self.test_vis:
             if self.vis_gap_train % 1000 == 0:
@@ -699,10 +707,10 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                 center_x, center_y = (centerpos % 64 * 16, centerpos // 64 * 16)
                 target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
                 target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
-                gt_img = visualize_kp3d(gt_keypoints3d[0:1].cpu().numpy()[:, :, :3], data_source='h36m', return_array=True)[0] / 255.0
-                pred_img = visualize_kp3d(pred_keypoints3d[0, 11:12].detach().cpu().numpy(), data_source='h36m', return_array=True)[0] / 255.0
-                smpl_img = visualize_smpl_pose(verts=pred_vertices[11:12].cpu(), 
-                                            body_model_config=dict(
+                # gt_img = visualize_kp3d(gt_keypoints3d[0:1].cpu().numpy()[:, :, :3], data_source='h36m', return_array=True)[0] / 255.0
+                # pred_img = visualize_kp3d(pred_keypoints3d[0, 11:12].detach().cpu().numpy(), data_source='h36m', return_array=True)[0] / 255.0
+                smpl_img = visualize_smpl_pose(verts=pred_vertices[0:1].cpu(), 
+                                                body_model_config=dict(
                                                     type='SMPL',
                                                     keypoint_src='smpl_24',
                                                     keypoint_dst='h36m',
@@ -710,7 +718,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                                             )
                 smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
                 plt.imsave(self.vis_folder + '/train_%06d.jpg' % self.vis_train_id, 
-                           np.concatenate([target_img, gt_img, pred_img, smpl_img], axis=1))
+                           np.concatenate([target_img, smpl_img], axis=1))
                 # exit()
                 self.vis_train_id += 1
             self.vis_gap_train += 1
@@ -728,20 +736,20 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             gt_vertices = targets['opt_vertices']
         else:
             has_smpl = targets['has_smpl'].view(-1)
-            gt_pose = targets['smpl_body_pose']
-            global_orient = targets['smpl_global_orient'].view(-1, 1, 3)
-            gt_pose = torch.cat((global_orient, gt_pose), dim=1).float()
-            gt_betas = targets['smpl_betas'].float()
+            gt_pose = targets['smpl_body_pose_map']
+            global_orient = targets['smpl_global_orient_map'].unsqueeze(3)
+            gt_pose = torch.cat((global_orient, gt_pose), dim=3).float()
+            gt_betas = targets['smpl_betas_map'].float()
 
-            # gt_pose N, 72
-            if self.body_model_train is not None:
-                gt_output = self.body_model_train(
-                    betas=gt_betas,
-                    body_pose=gt_pose[:, 3:],
-                    global_orient=gt_pose[:, :3],
-                    num_joints=gt_keypoints2d.shape[1])
-                gt_vertices = gt_output['vertices']
-                gt_model_joints = gt_output['joints']
+            # # gt_pose N, 72
+            # if self.body_model_train is not None:
+            #     gt_output = self.body_model_train(
+            #         betas=gt_betas,
+            #         body_pose=gt_pose[:, 3:],
+            #         global_orient=gt_pose[:, :3],
+            #         num_joints=gt_keypoints2d.shape[1])
+            #     gt_vertices = gt_output['vertices']
+            #     gt_model_joints = gt_output['joints']
         if 'has_keypoints3d' in targets:
             has_keypoints3d = targets['has_keypoints3d'].squeeze(-1)
         else:
@@ -772,10 +780,10 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                 pred_vertices, gt_vertices, has_smpl)
         if self.loss_smpl_pose is not None:
             losses['smpl_pose_loss'] = self.compute_smpl_pose_loss(
-                pred_pose, gt_pose, has_smpl)
+                pred_pose, gt_pose, has_smpl, targets['valid_mask'])
         if self.loss_smpl_betas is not None:
             losses['smpl_betas_loss'] = self.compute_smpl_betas_loss(
-                pred_betas, gt_betas, has_smpl)
+                pred_betas, gt_betas, has_smpl, targets['valid_mask'])
         if self.loss_camera is not None:
             losses['camera_loss'] = self.compute_camera_loss(pred_cam)
         if self.loss_segm_mask is not None:

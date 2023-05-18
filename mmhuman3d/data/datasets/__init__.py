@@ -4,6 +4,7 @@ from .builder import DATASETS, PIPELINES, build_dataloader, build_dataset
 from .dataset_wrappers import ConcatDataset, RepeatDataset
 from .human_hybrik_dataset import HybrIKHumanImageDataset
 from .human_image_dataset import HumanImageDataset
+from .humans_image_dataset import HumansImageDataset
 from .human_image_smplx_dataset import HumanImageSMPLXDataset
 from .human_pymafx_dataset import PyMAFXHumanImageDataset
 from .human_video_dataset import HumanVideoDataset
@@ -17,5 +18,6 @@ __all__ = [
     'build_dataloader', 'build_dataset', 'Compose', 'DistributedSampler',
     'ConcatDataset', 'RepeatDataset', 'DATASETS', 'PIPELINES', 'MixedDataset',
     'AdversarialDataset', 'MeshDataset', 'HumanVideoDataset',
-    'HybrIKHumanImageDataset', 'PyMAFXHumanImageDataset'
+    'HybrIKHumanImageDataset', 'PyMAFXHumanImageDataset',
+    'HumansImageDataset'
 ]

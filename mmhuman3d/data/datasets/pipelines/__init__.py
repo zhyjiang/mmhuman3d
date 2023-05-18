@@ -26,11 +26,13 @@ from .transforms import (
     GetRandomScaleRotation,
     Lighting,
     MeshAffine,
+    MultiMeshAffine,
     Normalize,
     RandomChannelNoise,
     RandomHorizontalFlip,
     Rotation,
     SimulateLowRes,
+    RemoveItems,
 )
 
 __all__ = [
@@ -40,5 +42,6 @@ __all__ = [
     'GetRandomScaleRotation', 'MeshAffine', 'HybrIKRandomFlip', 'HybrIKAffine',
     'GenerateHybrIKTarget', 'RandomDPG', 'RandomOcclusion', 'Rotation',
     'NewKeypointsSelection', 'Normalize', 'SyntheticOcclusion',
-    'BBoxCenterJitter', 'SimulateLowRes', 'GetBboxInfo'
+    'BBoxCenterJitter', 'SimulateLowRes', 'GetBboxInfo', 'MultiMeshAffine',
+    'RemoveItems'
 ]
