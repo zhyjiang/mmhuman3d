@@ -196,14 +196,17 @@ class HumanImageDataset(BaseDataset, metaclass=ABCMeta):
             info['center'] = np.zeros((2))
             info['scale'] = np.zeros((2))
         
-        Sid = self.human_data['image_path'][idx].split('/')[0]
-        Cid = self.human_data['image_path'][idx].split('/')[2].split('.')[1]
         if self.whole_image:
-            Sid = self.human_data['image_path'][idx].split('/')[0]
-            Cid = self.human_data['image_path'][idx].split('/')[2].split('.')[1]
-            h, w = (self.human_data['cam_param'][(Sid, Cid)]['H'], self.human_data['cam_param'][(Sid, Cid)]['W'])
-            info['center'] = np.array([w / 2.0, h / 2.0])
-            info['scale'] = np.array([w, h])
+            if self.dataset_name == 'h36m':
+                Sid = self.human_data['image_path'][idx].split('/')[0]
+                Cid = self.human_data['image_path'][idx].split('/')[2].split('.')[1]
+                h, w = (self.human_data['cam_param'][(Sid, Cid)]['H'], self.human_data['cam_param'][(Sid, Cid)]['W'])
+                info['center'] = np.array([w / 2.0, h / 2.0])
+                info['scale'] = np.array([w, h])
+            elif self.dataset_name == 'pw3d':
+                h, w = (self.human_data['cam_param'][idx]['H'], self.human_data['cam_param'][idx]['W'])
+                info['center'] = np.array([w / 2.0, h / 2.0])
+                info['scale'] = np.array([w, h])
 
         # in later modules, we will check validity of each keypoint by
         # its confidence. Therefore, we do not need the mask of keypoints.
