@@ -313,6 +313,7 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
         res = dict(keypoints=keypoints, poses=poses, betas=betas)
         mmcv.dump(res, res_file)
 
+        # import ipdb; ipdb.set_trace()
         name_value_tuples = []
         for _metric in metrics:
             if _metric == 'mpjpe':
@@ -399,13 +400,15 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
                 gender = []
                 smpl_dict = self.human_data['smpl']
                 for idx in range(self.num_data):
-                    betas.append(smpl_dict['betas'][idx])
-                    body_pose.append(smpl_dict['body_pose'][idx])
-                    global_orient.append(smpl_dict['global_orient'][idx])
-                    if self.human_data['meta']['gender'][idx] == 'm':
-                        gender.append(0)
-                    else:
-                        gender.append(1)
+                    for frame_idx in range(self.human_data['frame_range'][idx][0],
+                                           self.human_data['frame_range'][idx][1]):
+                        betas.append(smpl_dict['betas'][frame_idx])
+                        body_pose.append(smpl_dict['body_pose'][frame_idx])
+                        global_orient.append(smpl_dict['global_orient'][frame_idx])
+                        if self.human_data['meta']['gender'][frame_idx] == 'm':
+                            gender.append(0)
+                        else:
+                            gender.append(1)
                 betas = torch.FloatTensor(betas)
                 body_pose = torch.FloatTensor(body_pose).view(-1, 69)
                 global_orient = torch.FloatTensor(global_orient)

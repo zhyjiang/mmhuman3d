@@ -117,18 +117,18 @@ train_pipeline = [
 test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='GetRandomScaleRotation', rot_factor=0, scale_factor=0),
-    dict(type='MeshAffine', img_res=img_res),
+    dict(type='MultiMeshAffine', img_res=img_res),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     # dict(type='ToTensor', keys=data_keys),
     dict(
         type='Collect',
         keys=['img', 'sample_idx'],
-        meta_keys=['image_path', 'center', 'scale', 'rotation'])
+        meta_keys=['image_path', 'center', 'scale', 'rotation', 'human_center'])
 ]
 
 inference_pipeline = [
-    dict(type='MeshAffine', img_res=img_res),
+    dict(type='MultiMeshAffine', img_res=img_res),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     dict(
@@ -140,6 +140,7 @@ inference_pipeline = [
 data = dict(
     samples_per_gpu=12, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
     workers_per_gpu=8,
+    # workers_per_gpu=0,
     # persistent_workers=False,
     train=dict(
         # type='MixedDataset',
@@ -178,7 +179,7 @@ data = dict(
         data_prefix='data',
         pipeline=test_pipeline,
         whole_image=True,
-        ann_file='pw3d_test.npz',
+        ann_file='pw3d_validation.npz'
     ),
     val=dict(
         type=dataset_type,
