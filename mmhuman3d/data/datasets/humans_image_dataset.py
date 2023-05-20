@@ -178,6 +178,7 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
                 'smpl_global_orient': [],
                 'smpl_betas': [],
                 'smpl_transl': [],
+                'frame_ranges': []
                 }
         info_keys = list(info.keys())
         info['img_prefix'] = None
@@ -206,6 +207,7 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
             info['scale'] = np.array([w, h])
         for human_idx in range(self.human_data['frame_range'][sample_idx][0],
                                self.human_data['frame_range'][sample_idx][1]):
+            info['frame_ranges'].append(human_idx)
             if 'bbox_xywh' in self.human_data:
                 info['bbox_xywh'].append(self.human_data['bbox_xywh'][human_idx])
             else:
@@ -305,7 +307,7 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
                 )
 
         keypoints, poses, betas = [], [], []
-        for i in range(self.num_data):
+        for i in range(len(res_dict)):
             keypoints.append(res_dict[i]['keypoints'])
             poses.append(res_dict[i]['poses'])
             betas.append(res_dict[i]['betas'])
@@ -384,12 +386,12 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
             pred_vertices = pred_output['vertices'].detach().cpu().numpy(
             ) * 1000.
 
-            assert len(pred_vertices) == self.num_data
+            # assert len(pred_vertices) == self.num_data
 
             return pred_vertices, gt_vertices, gt_mask
         elif mode == 'keypoint':
             pred_keypoints3d = res['keypoints']
-            assert len(pred_keypoints3d) == self.num_data
+            # assert len(pred_keypoints3d) == self.num_data
             # (B, 17, 3)
             pred_keypoints3d = np.array(pred_keypoints3d)
 

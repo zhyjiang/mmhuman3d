@@ -124,7 +124,7 @@ test_pipeline = [
     dict(
         type='Collect',
         keys=['img', 'sample_idx'],
-        meta_keys=['image_path', 'center', 'scale', 'rotation', 'human_center'])
+        meta_keys=['image_path', 'center', 'scale', 'rotation', 'human_center', 'frame_ranges'])
 ]
 
 inference_pipeline = [

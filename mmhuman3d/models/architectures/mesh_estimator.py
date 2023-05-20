@@ -910,7 +910,8 @@ class ImageBodyModelEstimator(BodyModelEstimator):
         for img_meta in img_metas:
             image_path.append(img_meta['image_path'])
         all_preds['image_path'] = image_path
-        all_preds['image_idx'] = kwargs['sample_idx']
+        all_preds['image_idx'] = [i for i in range(img_metas[0]['frame_ranges'][0], 
+                                                   img_metas[-1]['frame_ranges'][-1] + 1)]
         return all_preds
 
 
