@@ -86,7 +86,7 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
                  backbone: Optional[Union[dict, None]] = None,
                  img_res: Optional[int] = 256,
                  test_vis: Optional[bool] = False,
-                 vis_folder: Optional[str] = 'vis/skeletonVis',
+                 vis_folder: Optional[str] = 'vis/skeletonVi_h3m_Tiny',
 
                  neck: Optional[Union[dict, None]] = None,
                  head: Optional[Union[dict, None]] = None,
@@ -120,8 +120,8 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.vis_folder = vis_folder
         
         # import ipdb; ipdb.set_trace()
-        # if os.path.exists(self.vis_folder):
-        #     os.makedirs(self.vis_folder)
+        if not os.path.exists(self.vis_folder):
+            os.makedirs(self.vis_folder)
             
 
         if self.test_vis:
@@ -670,7 +670,9 @@ class ImageBodyKPModelEstimator(BodyModelKPEstimator):
                 target_img = (img[0, :, :, :].permute(1, 2, 0) + 1) / 2.0
                 target_img = target_img.cpu().numpy()
                 centerpos = int(torch.argmax(pred_centermap[0]))
-                center_x, center_y = (centerpos % 64 * 16, centerpos // 64 * 16)
+                # center_x, center_y = (centerpos % 64 * 16, centerpos // 64 * 16)
+                center_x, center_y = (centerpos % pred_centermap.shape[2] * 16, centerpos // pred_centermap.shape[2] * 16)
+
                 target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
                 target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
                 pred_img = visualize_kp3d(pred_keypoint_3d[0:1].detach().cpu().numpy(), data_source='h36m', return_array=True)[0] / 255.0

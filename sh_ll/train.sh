@@ -26,7 +26,7 @@
 #     --gpus 1
 
 
-export CUDA_VISIBLE_DEVICES=7
-python tools/train.py configs/depth/depth_pretrained_3DPW_SwimBase.py \
+export CUDA_VISIBLE_DEVICES=0
+python tools/train.py configs/depth/depth_pretrained_3DPW_SwimTiny.py \
     --work-dir work_dirs/Depth_3DPW  \
     --gpus 1
