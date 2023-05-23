@@ -688,7 +688,6 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             gt_keypoints3d = targets['keypoints3d']
             gt_keypoints2d = targets['keypoints2d']
         # pred_pose N, 24, 3, 3
-        # import ipdb; ipdb.set_trace()
         if self.body_model_train is not None:
             pred_output = self.body_model_train(
                 betas=pred_betas[mask],
@@ -699,15 +698,13 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
             pred_keypoints3d = pred_output['joints']
             pred_vertices = pred_output['vertices']
         pred_keypoints3d = pred_keypoints3d.view(torch.sum(mask), -1, self.num_joints, 3)
-
         if self.test_vis:
-            if self.vis_gap_train % 1000 == 0:
+            if self.vis_gap_train % 100 == 0:
                 target_img = (targets['img'][0, :, :, :].permute(1, 2, 0) + 1) / 2.0
                 target_img = target_img.cpu().numpy()
-                centerpos = int(torch.argmax(targets['centermap'][0]))
-                center_x, center_y = (centerpos % (self.img_res // 4) * 16, centerpos // (self.img_res // 4) * 16)
+                center_x, center_y = targets['img_metas'][0]['human_center'][0] * 4
                 target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
-                target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
+                target_img = cv2.circle(target_img, (int(center_x), int(center_y)), 10, (1, 0, 0), -1)
                 # gt_img = visualize_kp3d(gt_keypoints3d[0:1].cpu().numpy()[:, :, :3], data_source='h36m', return_array=True)[0] / 255.0
                 # pred_img = visualize_kp3d(pred_keypoints3d[0, 11:12].detach().cpu().numpy(), data_source='h36m', return_array=True)[0] / 255.0
                 smpl_img = visualize_smpl_pose(verts=pred_vertices[0:1].cpu(), 
@@ -718,8 +715,23 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                                                     model_path='data/body_models'),
                                             )
                 smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
+                
+                gt_output = self.body_model_train(
+                    betas=targets['smpl_betas_map'][0:1, int(center_y / 16), int(center_x / 16), :],
+                    body_pose=targets['smpl_body_pose_map'][0:1, int(center_y / 16), int(center_x / 16), ...].view(-1, 69),
+                    global_orient=targets['smpl_global_orient_map'][0:1, int(center_y / 16), int(center_x / 16), ...],
+                    num_joints=self.num_joints)
+                gt_vertices = gt_output['vertices']
+                gt_smpl_img = visualize_smpl_pose(verts=gt_vertices[0:1].cpu(), 
+                                                body_model_config=dict(
+                                                    type='SMPL',
+                                                    keypoint_src='smpl_24',
+                                                    keypoint_dst='h36m',
+                                                    model_path='data/body_models'),
+                                            )
+                gt_smpl_img = gt_smpl_img.cpu().numpy()[0, :, :, :3]
                 plt.imsave(self.vis_folder + '/train_%06d.jpg' % self.vis_train_id, 
-                           np.concatenate([target_img, smpl_img], axis=1))
+                           np.concatenate([target_img, gt_smpl_img, smpl_img], axis=1))
                 # exit()
                 self.vis_train_id += 1
             self.vis_gap_train += 1
