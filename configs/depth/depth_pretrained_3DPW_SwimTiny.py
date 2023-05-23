@@ -2,10 +2,10 @@ _base_ = ['../_base_/default_runtime.py']
 use_adversarial_train = True
 
 # evaluate
-evaluation = dict(interval=100, metric=['pa-mpjpe', 'mpjpe'])
+evaluation = dict(interval=10, metric=['pa-mpjpe', 'mpjpe'])
 
 img_res = 256
-vis_folder = 'vis/vis_3dpw'
+vis_folder = 'vis/Depth_3DPW_modify'
 
 # optimizer
 optimizer = dict(
@@ -71,9 +71,9 @@ model = dict(
     num_joints=24,
     # loss_keypoints3d=dict(type='MSELoss', loss_weight=300),
     # loss_keypoints2d=dict(type='MSELoss', loss_weight=300),
-    loss_centermap=dict(type='MSELoss', loss_weight=60),
+    loss_centermap=dict(type='MSELoss', loss_weight=30),
     loss_smpl_pose=dict(type='MSELoss', loss_weight=60),
-    loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.001),
+    loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.1),
     # loss_segm_mask=dict(type='CrossEntropyLoss', loss_weight=60),
     # loss_camera=dict(type='CameraPriorLoss', loss_weight=1),
     test_vis=True,
@@ -111,7 +111,7 @@ train_pipeline = [
     dict(
         type='Collect',
         keys=['img', *data_keys],
-        meta_keys=['image_path', 'center', 'scale', 'rotation'])
+        meta_keys=['image_path', 'center', 'scale', 'rotation', 'human_center'])
 ]
 
 test_pipeline = [
