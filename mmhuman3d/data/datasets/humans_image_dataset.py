@@ -200,11 +200,11 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
             Cid = self.human_data['image_path'][idx].split('/')[2].split('.')[1]
             h, w = (self.human_data['cam_param'][(Sid, Cid)]['H'], self.human_data['cam_param'][(Sid, Cid)]['W'])
             info['center'] = np.array([w / 2.0, h / 2.0])
-            info['scale'] = p.array([1.0, 1.0]) * max(h, w)
+            info['scale'] = np.array([1.0, 1.0]) * max(h, w)
         elif self.dataset_name == 'pw3d':
             h, w = (self.human_data['cam_param'][idx]['H'], self.human_data['cam_param'][idx]['W'])
             info['center'] = np.array([w / 2.0, h / 2.0])
-            info['scale'] = p.array([1.0, 1.0]) * max(h, w)
+            info['scale'] = np.array([1.0, 1.0]) * max(h, w)
         for human_idx in range(self.human_data['frame_range'][sample_idx][0],
                                self.human_data['frame_range'][sample_idx][1]):
             info['frame_ranges'].append(human_idx)

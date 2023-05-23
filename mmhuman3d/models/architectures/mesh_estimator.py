@@ -881,16 +881,14 @@ class ImageBodyModelEstimator(BodyModelEstimator):
             if self.vis_gap_test % 1000 == 0:
                 target_img = (img[0, :, :, :].permute(1, 2, 0) + 1) / 2.0
                 target_img = target_img.cpu().numpy()
-                centerpos = int(torch.argmax(pred_centermap[0]))
-                center_x, center_y = (centerpos % (self.img_res // 4) * 16, centerpos // (self.img_res // 4) * 16)
                 target_img = cv2.resize(target_img, (1024, 1024), interpolation = cv2.INTER_AREA)
-                target_img = cv2.circle(target_img, (center_x, center_y), 10, (1, 0, 0), -1)
+                target_img = cv2.circle(target_img, (x[0] * 16, y[0] * 16), 10, (1, 0, 0), -1)
                 smpl_img = visualize_smpl_pose(verts=pred_output['vertices'][0:1].cpu(), 
                                                 body_model_config=dict(
-                                                    type='SMPL',
-                                                    keypoint_src='smpl_24',
-                                                    keypoint_dst='h36m',
-                                                    model_path='data/body_models'),
+                                                type='SMPL',
+                                                keypoint_src='smpl_54',
+                                                keypoint_dst='smpl_24',
+                                                model_path='data/body_models'),
                                             )
                 smpl_img = smpl_img.cpu().numpy()[0, :, :, :3]
                 plt.imsave(self.vis_folder +'/test_%06d.jpg' % self.vis_test_id, 
