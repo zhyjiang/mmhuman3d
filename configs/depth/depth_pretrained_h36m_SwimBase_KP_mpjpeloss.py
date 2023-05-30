@@ -136,7 +136,7 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=4, # base model 12: 39000 G 
+    samples_per_gpu=12, # base model 12: 39000 G 
     workers_per_gpu=8,
 
     train=dict(

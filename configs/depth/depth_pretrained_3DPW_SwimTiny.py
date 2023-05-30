@@ -2,10 +2,10 @@ _base_ = ['../_base_/default_runtime.py']
 use_adversarial_train = True
 
 # evaluate
-evaluation = dict(interval=4, metric=['pa-mpjpe', 'mpjpe'])
+evaluation = dict(interval=10, metric=['pa-mpjpe', 'mpjpe'])
 
 img_res = 256
-vis_folder = 'vis/vis_3dpw'
+vis_folder = 'vis/Depth_3DPW_modify'
 
 # optimizer
 optimizer = dict(
@@ -41,7 +41,7 @@ model = dict(
     type='ImageBodyModelEstimator',
     backbone=dict(
         type='DepthPretrained',
-        path='checkpoint/dpt_swin2_tiny_256.pt',
+        path='data/checkpoints/dpt_swin2_tiny_256.pt',
         backbone="swin2t16_256", #swin2b24_384 swin2t16_256
         non_negative=True,
         ),
@@ -71,9 +71,9 @@ model = dict(
     num_joints=24,
     # loss_keypoints3d=dict(type='MSELoss', loss_weight=300),
     # loss_keypoints2d=dict(type='MSELoss', loss_weight=300),
-    loss_centermap=dict(type='MSELoss', loss_weight=60),
+    loss_centermap=dict(type='MSELoss', loss_weight=30),
     loss_smpl_pose=dict(type='MSELoss', loss_weight=60),
-    loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.001),
+    loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.1),
     # loss_segm_mask=dict(type='CrossEntropyLoss', loss_weight=60),
     # loss_camera=dict(type='CameraPriorLoss', loss_weight=1),
     test_vis=True,
@@ -138,7 +138,7 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=12, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
+    samples_per_gpu=64, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
     workers_per_gpu=8,
     # workers_per_gpu=0,
     # persistent_workers=False,
@@ -161,7 +161,7 @@ data = dict(
         pipeline=train_pipeline,
         whole_image=True,
         # convention='pw3d',
-        ann_file='pw3d_validation.npz'
+        ann_file='pw3d_train.npz'
     ),
     test=dict(
         type=dataset_type,

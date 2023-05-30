@@ -8,5 +8,5 @@
 python tools/convert_datasets.py \
   --datasets pw3d \
   --root_path data/datasets \
-  --enable_multi_human_data False \
+  --enable_multi_human_data True \
   --output_path data/preprocessed_datasets
