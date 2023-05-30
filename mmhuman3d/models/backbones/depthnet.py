@@ -143,14 +143,12 @@ class DPT(BaseModel):
             path_3 = self.scratch.refinenet3(path_4, layer_3_rn, size=layer_2_rn.shape[2:])
         path_2 = self.scratch.refinenet2(path_3, layer_2_rn, size=layer_1_rn.shape[2:])
         path_1 = self.scratch.refinenet1(path_2, layer_1_rn)
-
+        out = self.scratch.output_conv(path_1)
+        
         if self.scratch.stem_transpose is not None:
             path_1 = self.scratch.stem_transpose(path_1)
 
-        # out = self.scratch.output_conv(path_1)
-
-        return path_1
-
+        return {'path_1': path_1, 'path_3': path_3, 'depth': out.squeeze(1)}
 
 class DPTDepthModel(DPT):
     def __init__(self, path=None, non_negative=True, **kwargs):
@@ -176,4 +174,4 @@ class DPTDepthModel(DPT):
            self.load(path)
 
     def forward(self, x):
-        return super().forward(x).squeeze(dim=1)
+        return super().forward(x)

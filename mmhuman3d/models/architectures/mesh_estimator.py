@@ -682,7 +682,6 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         pred_cam = predictions['pred_cam'].permute(0, 2, 3, 1)
         pred_centermap = predictions['center_heatmap']
         mask = targets['centermap'] == 1
-        # import ipdb; ipdb.set_trace()
         
         if 'keypoints3d' in targets:
             gt_keypoints3d = targets['keypoints3d']

@@ -54,6 +54,7 @@ class SimpleHead(BaseModule):
         self.num_joints = num_joints
 
     def forward(self, x):
+        x = x['path_1']
         batch_size = x.shape[0]
         center_heatmap = self.center_head(x)
         pose_feat = self.smpl_head(x)
