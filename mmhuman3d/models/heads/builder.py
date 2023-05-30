@@ -10,6 +10,7 @@ from .pare_head import PareHead
 from .pymafx_head import PyMAFXHead, Regressor
 from .simplehead import SimpleHead
 from .simplehead_KP import SimpleHeadKP
+from .mixedkphead import MixedKPHead
 
 HEADS = Registry('heads')
 
@@ -24,6 +25,7 @@ HEADS.register_module(name='PyMAFXHead', module=PyMAFXHead)
 HEADS.register_module(name='Regressor', module=Regressor)
 HEADS.register_module(name='SimpleHead', module=SimpleHead)
 HEADS.register_module(name='SimpleHeadKP', module=SimpleHeadKP)
+HEADS.register_module(name='MixedKPHead', module=MixedKPHead)
 
 
 def build_head(cfg):

@@ -71,6 +71,6 @@ class SimpleHead(BaseModule):
             'pred_pose': pred_rotmat,
             'pred_shape': pred_shape,
             'pred_cam': pred_cam,
-            'center_heatmap': center_heatmap.squeeze()
+            'center_heatmap': center_heatmap.squeeze(),
         }
         return output

@@ -99,6 +99,7 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
                  loss_keypoints2d: Optional[Union[dict, None]] = None,
                  loss_keypoints3d: Optional[Union[dict, None]] = None,
                  loss_vertex: Optional[Union[dict, None]] = None,
+                 loss_heatmap2d: Optional[Union[dict, None]] = None,
                 #  loss_smpl_pose: Optional[Union[dict, None]] = None,
                 #  loss_smpl_betas: Optional[Union[dict, None]] = None,
                  loss_camera: Optional[Union[dict, None]] = None,
@@ -144,6 +145,7 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
             self.registrant = None
 
         self.loss_keypoints2d = build_loss(loss_keypoints2d)
+        self.loss_heatmap2d = build_loss(loss_heatmap2d)
         self.loss_keypoints3d = build_loss(loss_keypoints3d)
 
         self.loss_vertex = build_loss(loss_vertex)
@@ -423,6 +425,12 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
         """Compute loss for predicted camera parameters."""
         loss = self.loss_camera(cameras)
         return loss
+    
+    def compute_heatmap2d_loss(self, 
+                               pred_heatmap2d: torch.Tensor,
+                               gt_heatmap2d: torch.Tensor):
+        loss = self.loss_heatmap2d(pred_heatmap2d, gt_heatmap2d)
+        return loss
 
     def compute_part_segmentation_loss(self,
                                        pred_heatmap: torch.Tensor,
@@ -554,10 +562,11 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
                 has_keypoints2d=has_keypoints2d)
         if self.loss_camera is not None:
             losses['camera_loss'] = self.compute_camera_loss(pred_cam)
-        if self.loss_segm_mask is not None:
-            losses['loss_segm_mask'] = self.compute_part_segmentation_loss(
-                pred_segm_mask, gt_vertices, gt_keypoints2d, gt_model_joints,
-                has_smpl)
+        
+        if self.loss_heatmap2d is not None:
+            pred_heatmap2d = predictions['pred_KP2d']
+            gt_heatmap2d = targets['heatmap2d']
+            losses['heatmap2d_loss'] = self.compute_heatmap2d_loss(pred_heatmap2d, gt_heatmap2d)
 
         return losses
 

@@ -33,6 +33,8 @@ from .transforms import (
     Rotation,
     SimulateLowRes,
     RemoveItems,
+    Generate2DHeatmap,
+    GenerateCenterTarget
 )
 
 __all__ = [
@@ -43,5 +45,5 @@ __all__ = [
     'GenerateHybrIKTarget', 'RandomDPG', 'RandomOcclusion', 'Rotation',
     'NewKeypointsSelection', 'Normalize', 'SyntheticOcclusion',
     'BBoxCenterJitter', 'SimulateLowRes', 'GetBboxInfo', 'MultiMeshAffine',
-    'RemoveItems'
+    'RemoveItems', 'Generate2DHeatmap', 'GenerateCenterTarget'
 ]

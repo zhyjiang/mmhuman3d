@@ -148,7 +148,7 @@ class DPT(BaseModel):
         if self.scratch.stem_transpose is not None:
             path_1 = self.scratch.stem_transpose(path_1)
 
-        return {'path_1': path_1, 'path_3': path_3, 'depth': out.squeeze(1)}
+        return {'path_1': path_1, 'path_2': path_2, 'depth': out.squeeze(1)}
 
 class DPTDepthModel(DPT):
     def __init__(self, path=None, non_negative=True, **kwargs):
