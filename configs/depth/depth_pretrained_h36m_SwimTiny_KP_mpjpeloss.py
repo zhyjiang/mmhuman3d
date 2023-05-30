@@ -5,8 +5,8 @@ use_adversarial_train = True
 evaluation = dict(interval=4, metric=['pa-mpjpe', 'mpjpe'])
 
 img_res = 256
-vis_folder = 'vis/vis_3dpw'
 
+save_vis_folder = "vis/depth_pretrained_h36m_SwimTiny_KP_mpjpeloss"
 # optimizer
 optimizer = dict(
     backbone=dict(type='Adam', lr=1.0e-4),
@@ -33,12 +33,14 @@ checkpoint_config = dict(interval=1)
 width = 32
 downsample = False
 use_conv = True
-num_joints = 24
 
 find_unused_parameters = True
 
 model = dict(
-    type='ImageBodyModelEstimator',
+    type='ImageBodyKPModelEstimator',
+    # type='ImageBodyModelEstimator',
+    num_joints=17,
+    vis_folder=save_vis_folder,
     backbone=dict(
         type='DepthPretrained',
         path='checkpoint/dpt_swin2_tiny_256.pt',
@@ -46,19 +48,18 @@ model = dict(
         non_negative=True,
         ),
     head=dict(
-        type='SimpleHead',
-        num_joints=num_joints,
+        type='SimpleHeadKP',
+        num_joints=17,
         num_input_features=256,
-        # num_input_features=384, ## change the input features
-
     ),
     body_model_train=dict(
         type='SMPL',
-        keypoint_src='smpl_54',
-        keypoint_dst='smpl_24',
+        keypoint_src='h36m',
+        keypoint_dst='h36m',
         model_path='data/body_models/smpl',
-        keypoint_approximate=True,
-        extra_joints_regressor='data/body_models/J_regressor_extra.npy',
+        # keypoint_approximate=True,
+        # extra_joints_regressor='data/body_models/J_regressor_extra.npy'
+        joints_regressor='data/body_models/J_regressor_h36m.npy',
         ),
     body_model_test=dict(
         type='SMPL',
@@ -67,17 +68,18 @@ model = dict(
         model_path='data/body_models/smpl',
         joints_regressor='data/body_models/J_regressor_h36m.npy'),
     img_res=img_res,
-    convention='smpl_24',
-    num_joints=24,
-    # loss_keypoints3d=dict(type='MSELoss', loss_weight=300),
-    # loss_keypoints2d=dict(type='MSELoss', loss_weight=300),
-    loss_centermap=dict(type='MSELoss', loss_weight=60),
-    loss_smpl_pose=dict(type='MSELoss', loss_weight=60),
-    loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.001),
+    convention='h36m',
+    loss_keypoints3d=dict(type='MPJPELoss', loss_weight=1),
+    ## MPJPELoss
+    loss_keypoints2d=dict(type='MSELoss', loss_weight=1),
+    loss_centermap=dict(type='MSELoss', loss_weight=1),
+
+    # loss_smpl_pose=dict(type='MSELoss', loss_weight=60),
+    # loss_smpl_betas=dict(type='MSELoss', loss_weight=60 * 0.001),
+
     # loss_segm_mask=dict(type='CrossEntropyLoss', loss_weight=60),
     # loss_camera=dict(type='CameraPriorLoss', loss_weight=1),
     test_vis=True,
-    vis_folder=vis_folder,
 )
 
 # dataset settings
@@ -86,9 +88,7 @@ img_norm_cfg = dict(
     mean=[255 / 2.0, 255 / 2.0, 255 / 2.0], std=[255 / 2.0, 255 / 2.0, 255 / 2.0], to_rgb=True)
 # img_norm_cfg = dict(mean=[0, 0, 0], std=[255.0, 255.0, 255.0], to_rgb=True)
 data_keys = [
-    'has_smpl', 'has_keypoints3d', 'has_keypoints2d', 'smpl_body_pose_map',
-    'smpl_global_orient_map', 'smpl_betas_map', 'smpl_transl', 'sample_idx', 
-    'centermap', 'valid_mask'
+    'has_smpl', 'has_keypoints3d', 'has_keypoints2d', 'keypoints2d_map', 'keypoints3d_map', 'sample_idx', 'bbox_xywh', 'centermap', 'valid_mask'
 ]
 train_pipeline = [
     dict(type='LoadImageFromFile'),
@@ -97,13 +97,10 @@ train_pipeline = [
     #     type='SyntheticOcclusion',
     #     occluders_file='data/occluders/pascal_occluders.npy'),
     # dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='h36m'),
-    dict(type='GetRandomScaleRotation', rot_factor=15, scale_factor=0),
+    dict(type='GetRandomScaleRotation', rot_factor=30, scale_factor=0),
     dict(type='MultiMeshAffine', img_res=img_res),
     
-    ## now base trained with the 64 * 64
-    # dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(64, 64), sigma=3, root_id=0),
-    
-    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(img_res // 4, img_res // 4), sigma=3),
+    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(img_res // 4, img_res // 4), sigma=3, root_id=0),
 
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
@@ -138,10 +135,11 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=12, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
-    workers_per_gpu=8,
-    # workers_per_gpu=0,
-    # persistent_workers=False,
+    samples_per_gpu=4, # base model 12: 39000 G 
+    # workers_per_gpu=8,
+    workers_per_gpu=0,
+    persistent_workers=False,
+
     train=dict(
         # type='MixedDataset',
         # configs=[
@@ -156,12 +154,12 @@ data = dict(
         # ],
         # partition=[1.0],
         type=dataset_type,
-        dataset_name='pw3d',
+        dataset_name='h36m',
         data_prefix='data',
         pipeline=train_pipeline,
         whole_image=True,
-        # convention='pw3d',
-        ann_file='pw3d_validation.npz'
+        convention='h36m',
+        ann_file='h36m_train.npz'
     ),
     test=dict(
         type=dataset_type,
@@ -175,11 +173,11 @@ data = dict(
         # data_prefix='data',
         # pipeline=test_pipeline,
         # ann_file='pw3d_test.npz',
-        dataset_name='pw3d',
+        dataset_name='h36m',
         data_prefix='data',
         pipeline=test_pipeline,
         whole_image=True,
-        ann_file='pw3d_validation.npz'
+        ann_file='h36m_valid_protocol1.npz'
     ),
     val=dict(
         type=dataset_type,
@@ -193,11 +191,10 @@ data = dict(
         # data_prefix='data',
         # pipeline=test_pipeline,
         # ann_file='pw3d_test.npz',
-        dataset_name='pw3d',
+        dataset_name='h36m',
         data_prefix='data',
         pipeline=test_pipeline,
         whole_image=True,
-        ann_file='pw3d_validation.npz',
+        ann_file='h36m_valid_protocol1.npz'
         ),
 )
-        import ipdb; ipdb.set_trace()

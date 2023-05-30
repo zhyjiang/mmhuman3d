@@ -97,12 +97,11 @@ train_pipeline = [
     # dict(
     #     type='SyntheticOcclusion',
     #     occluders_file='data/occluders/pascal_occluders.npy'),
-    dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='h36m'),
+    # dict(type='RandomHorizontalFlip', flip_prob=0.5, convention='h36m'),
     dict(type='GetRandomScaleRotation', rot_factor=30, scale_factor=0),
-    dict(type='MeshAffine', img_res=img_res),
-    # dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(64, 64), sigma=3, root_id=0),
+    dict(type='MultiMeshAffine', img_res=img_res),
     
-    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(96, 96), sigma=3, root_id=0),
+    dict(type='GenerateCenterTarget', img_res=img_res, heatmap_size=(img_res // 4, img_res // 4), sigma=3, root_id=0),
 
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
@@ -110,24 +109,24 @@ train_pipeline = [
     dict(
         type='Collect',
         keys=['img', *data_keys],
-        meta_keys=['image_path', 'center', 'scale', 'rotation'])
+        meta_keys=['image_path', 'center', 'scale', 'rotation', 'human_center'])
 ]
 
 test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='GetRandomScaleRotation', rot_factor=0, scale_factor=0),
-    dict(type='MeshAffine', img_res=img_res),
+    dict(type='MultiMeshAffine', img_res=img_res),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     # dict(type='ToTensor', keys=data_keys),
     dict(
         type='Collect',
         keys=['img', 'sample_idx'],
-        meta_keys=['image_path', 'center', 'scale', 'rotation'])
+        meta_keys=['image_path', 'center', 'scale', 'rotation', 'human_center', 'frame_ranges'])
 ]
 
 inference_pipeline = [
-    dict(type='MeshAffine', img_res=img_res),
+    dict(type='MultiMeshAffine', img_res=img_res),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='ImageToTensor', keys=['img']),
     dict(

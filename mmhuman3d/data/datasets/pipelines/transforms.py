@@ -789,6 +789,11 @@ class GenerateCenterTarget:
             smpl_pose_target = np.zeros((self.heatmap_size[1], self.heatmap_size[0], 23, 3), dtype=np.float32)
             smpl_betas_target = np.zeros((self.heatmap_size[1], self.heatmap_size[0], 10), dtype=np.float32)
             smpl_globel_orient_target = np.zeros((self.heatmap_size[1], self.heatmap_size[0], 3), dtype=np.float32)
+        if results['has_keypoints3d'] == 1:
+            keypoints3d_target = np.zeros((self.heatmap_size[1], self.heatmap_size[0], 
+                                           results['keypoints3d'].shape[1], 4), dtype=np.float32)
+            keypoints2d_target = np.zeros((self.heatmap_size[1], self.heatmap_size[0], 
+                                           results['keypoints3d'].shape[1], 3), dtype=np.float32)
 
         for human_idx, joint in enumerate(joints):
             target = self.gassuain_generate(target, joint, self.sigma * 3)
@@ -800,6 +805,9 @@ class GenerateCenterTarget:
                                                                    joint, 
                                                                    self.sigma, 
                                                                    results['smpl_global_orient'][human_idx])
+            if results['has_keypoints3d'] == 1:
+                keypoints3d_target = self.gassuain_generate(keypoints3d_target, joint, self.sigma, results['keypoints3d'][human_idx])
+                keypoints2d_target = self.gassuain_generate(keypoints2d_target, joint, self.sigma, results['keypoints2d'][human_idx])
             
         results['centermap'] = target
         results['valid_mask'] = valid_mask
@@ -807,6 +815,9 @@ class GenerateCenterTarget:
             results['smpl_body_pose_map'] = smpl_pose_target
             results['smpl_betas_map'] = smpl_betas_target
             results['smpl_global_orient_map'] = smpl_globel_orient_target
+        if results['has_keypoints3d'] == 1:
+            results['keypoints3d_map'] = keypoints3d_target
+            results['keypoints2d_map'] = keypoints2d_target
         return results
 
 @PIPELINES.register_module()
