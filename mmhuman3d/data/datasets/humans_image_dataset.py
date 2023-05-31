@@ -178,7 +178,7 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
                 'smpl_global_orient': [],
                 'smpl_betas': [],
                 'smpl_transl': [],
-                'frame_ranges': []
+                'frame_ranges': [],
                 }
         info_keys = list(info.keys())
         info['img_prefix'] = None
@@ -194,17 +194,20 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
 
         info['dataset_name'] = self.dataset_name
         info['sample_idx'] = sample_idx
+        full_idx = self.human_data['frame_range'][sample_idx][0]
         
         if self.dataset_name == 'h36m':
-            Sid = self.human_data['image_path'][idx].split('/')[0]
-            Cid = self.human_data['image_path'][idx].split('/')[2].split('.')[1]
+            Sid = self.human_data['image_path'][full_idx].split('/')[0]
+            Cid = self.human_data['image_path'][full_idx].split('/')[2].split('.')[1]
             h, w = (self.human_data['cam_param'][(Sid, Cid)]['H'], self.human_data['cam_param'][(Sid, Cid)]['W'])
             info['center'] = np.array([w / 2.0, h / 2.0])
             info['scale'] = np.array([1.0, 1.0]) * max(h, w)
         elif self.dataset_name == 'pw3d':
-            h, w = (self.human_data['cam_param'][idx]['H'], self.human_data['cam_param'][idx]['W'])
+            h, w = (self.human_data['cam_param'][full_idx]['H'], self.human_data['cam_param'][full_idx]['W'])
             info['center'] = np.array([w / 2.0, h / 2.0])
             info['scale'] = np.array([1.0, 1.0]) * max(h, w)
+            info['cam_param'] = self.human_data['cam_param'][full_idx]
+
         for human_idx in range(self.human_data['frame_range'][sample_idx][0],
                                self.human_data['frame_range'][sample_idx][1]):
             info['frame_ranges'].append(human_idx)
@@ -217,13 +220,13 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
             # its confidence. Therefore, we do not need the mask of keypoints.
 
             if 'keypoints2d' in self.human_data:
-                info['keypoints2d'].append(self.human_data['keypoints2d'][idx])
+                info['keypoints2d'].append(self.human_data['keypoints2d'][human_idx])
                 info['has_keypoints2d'] = 1
             else:
                 info['keypoints2d'] = np.zeros((1, self.num_keypoints, 3))
                 info['has_keypoints2d'] = 0
             if 'keypoints3d' in self.human_data:
-                info['keypoints3d'].append(self.human_data['keypoints3d'][idx])
+                info['keypoints3d'].append(self.human_data['keypoints3d'][human_idx])
                 info['has_keypoints3d'] = 1
             else:
                 info['keypoints3d'] = np.zeros((1, self.num_keypoints, 4))
@@ -236,28 +239,28 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
 
             if 'smpl' in self.human_data:
                 if 'has_smpl' in self.human_data:
-                    info['has_smpl'] = int(self.human_data['has_smpl'][idx])
+                    info['has_smpl'] = int(self.human_data['has_smpl'][human_idx])
                 else:
                     info['has_smpl'] = 1
             else:
                 info['has_smpl'] = 0
             if 'body_pose' in smpl_dict:
-                info['smpl_body_pose'].append(smpl_dict['body_pose'][idx])
+                info['smpl_body_pose'].append(smpl_dict['body_pose'][human_idx])
             else:
                 info['smpl_body_pose'] = np.zeros((1, 23, 3))
 
             if 'global_orient' in smpl_dict:
-                info['smpl_global_orient'].append(smpl_dict['global_orient'][idx])
+                info['smpl_global_orient'].append(smpl_dict['global_orient'][human_idx])
             else:
                 info['smpl_global_orient'] = np.zeros((1, 3))
 
             if 'betas' in smpl_dict:
-                info['smpl_betas'].append(smpl_dict['betas'][idx])
+                info['smpl_betas'].append(smpl_dict['betas'][human_idx])
             else:
                 info['smpl_betas'] = np.zeros((1, 10))
 
             if 'transl' in smpl_dict:
-                info['smpl_transl'].append(smpl_dict['transl'][idx])
+                info['smpl_transl'].append(smpl_dict['transl'][human_idx])
             else:
                 info['smpl_transl'] = np.zeros((1, 3))
 

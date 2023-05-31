@@ -54,6 +54,7 @@ class Pw3dConverter(BaseModeConverter):
 
         # structs we use
         image_path_, bbox_xywh_, cam_param_ = [], [], []
+        translation = []
         smpl = {}
         smpl['body_pose'] = []
         smpl['global_orient'] = []
@@ -69,7 +70,7 @@ class Pw3dConverter(BaseModeConverter):
             os.path.join(dataset_path, f) for f in os.listdir(dataset_path)
             if f.endswith('.pkl')
         ]
-        # files = ['data/datasets/pw3d/sequenceFiles/train/courtyard_dancing_01.pkl']
+        # files = ['data/datasets/pw3d/sequenceFiles/train/courtyard_goodNews_00.pkl']
 
         # go through all the .pkl files
         for filename in tqdm(files):
@@ -80,9 +81,11 @@ class Pw3dConverter(BaseModeConverter):
                 poses2d = data['poses2d']
                 global_poses = data['cam_poses']
                 genders = data['genders']
+                trans = data['trans']
                 valid = np.array(data['campose_valid']).astype(np.bool)
                 frame_valid = np.bitwise_or.reduce(valid, axis=0)
                 temp_body_pose = [[] for _ in range(np.sum(frame_valid))]
+                temp_trans = [[] for _ in range(np.sum(frame_valid))]
                 temp_global_orient = [[] for _ in range(np.sum(frame_valid))]
                 temp_betas = [[] for _ in range(np.sum(frame_valid))]
                 temp_meta_gender = [[] for _ in range(np.sum(frame_valid))]
@@ -109,6 +112,7 @@ class Pw3dConverter(BaseModeConverter):
                     valid_keypoints_2d = poses2d[i][valid[i]]
                     valid_img_names = img_names[valid[i]]
                     valid_global_poses = global_poses[valid[i]]
+                    valid_trans = trans[i][valid[i]]
                     valid_idx = np.where(valid[i][frame_valid])[0]
                     gender = genders[i]
 
@@ -126,6 +130,7 @@ class Pw3dConverter(BaseModeConverter):
                             max(keypoints2d[:, 0]),
                             max(keypoints2d[:, 1])
                         ]
+                        tran = valid_trans[valid_i]
 
                         bbox_xyxy = self._bbox_expand(
                             bbox_xyxy, scale_factor=1.2)
@@ -150,6 +155,7 @@ class Pw3dConverter(BaseModeConverter):
                         temp_image_path_[valid_idx[valid_i]].append(image_path)
                         temp_bbox_xywh_[valid_idx[valid_i]].append(bbox_xywh)
                         temp_body_pose[valid_idx[valid_i]].append(pose[3:].reshape((23, 3)))
+                        temp_trans[valid_idx[valid_i]].append(tran)
                         temp_global_orient[valid_idx[valid_i]].append(pose[:3])
                         temp_betas[valid_idx[valid_i]].append(valid_betas[valid_i])
                         temp_meta_gender[valid_idx[valid_i]].append(gender)
@@ -167,6 +173,7 @@ class Pw3dConverter(BaseModeConverter):
                 bbox_xywh_.extend(reduce(lambda a,b:a+b, temp_bbox_xywh_))
                 image_path_.extend(reduce(lambda a,b:a+b, temp_image_path_))
                 cam_param_.extend(reduce(lambda a,b:a+b, temp_cam_param_))
+                translation.extend(reduce(lambda a,b:a+b, temp_trans))
 
         # change list to np array
         bbox_xywh_ = np.array(bbox_xywh_).reshape((-1, 4))
@@ -177,6 +184,7 @@ class Pw3dConverter(BaseModeConverter):
         smpl['betas'] = np.array(smpl['betas']).reshape((-1, 10))
         meta['gender'] = np.array(meta['gender'])
         frame_range = np.array(frame_range).reshape((-1, 2))
+        smpl['transl'] = np.array(translation)
 
         human_data['image_path'] = image_path_
         human_data['bbox_xywh'] = bbox_xywh_

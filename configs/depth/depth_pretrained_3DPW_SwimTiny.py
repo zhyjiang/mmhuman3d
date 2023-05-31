@@ -41,7 +41,7 @@ model = dict(
     type='ImageBodyModelEstimator',
     backbone=dict(
         type='DepthPretrained',
-        path='data/checkpoints/dpt_swin2_tiny_256.pt',
+        path='checkpoint/dpt_swin2_tiny_256.pt',
         backbone="swin2t16_256", #swin2b24_384 swin2t16_256
         non_negative=True,
         ),
@@ -87,7 +87,7 @@ img_norm_cfg = dict(
 # img_norm_cfg = dict(mean=[0, 0, 0], std=[255.0, 255.0, 255.0], to_rgb=True)
 data_keys = [
     'has_smpl', 'has_keypoints3d', 'has_keypoints2d', 'smpl_body_pose_map',
-    'smpl_global_orient_map', 'smpl_betas_map', 'smpl_transl', 'sample_idx', 
+    'smpl_global_orient_map', 'smpl_betas_map', 'sample_idx', 
     'centermap', 'valid_mask'
 ]
 train_pipeline = [
@@ -111,7 +111,7 @@ train_pipeline = [
     dict(
         type='Collect',
         keys=['img', *data_keys],
-        meta_keys=['image_path', 'center', 'scale', 'rotation', 'human_center'])
+        meta_keys=['image_path', 'center', 'scale', 'rotation', 'human_center', 'smpl_transl', 'cam_param'])
 ]
 
 test_pipeline = [
@@ -138,10 +138,10 @@ inference_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=64, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
-    workers_per_gpu=8,
-    # workers_per_gpu=0,
-    # persistent_workers=False,
+    samples_per_gpu=12, # 24--> 15000MiB, 32--> 25000MiB, 64--> 39000MiB
+    # workers_per_gpu=8,
+    workers_per_gpu=0,
+    persistent_workers=False,
     train=dict(
         # type='MixedDataset',
         # configs=[
@@ -200,4 +200,3 @@ data = dict(
         ann_file='pw3d_validation.npz',
         ),
 )
-        import ipdb; ipdb.set_trace()
