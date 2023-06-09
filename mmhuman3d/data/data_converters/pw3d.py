@@ -54,6 +54,7 @@ class Pw3dConverter(BaseModeConverter):
 
         # structs we use
         image_path_, bbox_xywh_, cam_param_ = [], [], []
+        depth_path_ = []
         translation = []
         smpl = {}
         smpl['body_pose'] = []
@@ -101,6 +102,7 @@ class Pw3dConverter(BaseModeConverter):
                 ])
 
                 temp_image_path_ = [[] for _ in range(np.sum(frame_valid))]
+                temp_depth_path_ = [[] for _ in range(np.sum(frame_valid))]
                 temp_cam_param_ = [[] for _ in range(np.sum(frame_valid))]
                 
                 # get through all the people in the sequence
@@ -153,6 +155,7 @@ class Pw3dConverter(BaseModeConverter):
                                    cv2.Rodrigues(pose[:3])[0]))[0].T[0]
 
                         temp_image_path_[valid_idx[valid_i]].append(image_path)
+                        temp_depth_path_[valid_idx[valid_i]].append(image_path.replace('image', 'depth').replace('jpg', 'npy'))
                         temp_bbox_xywh_[valid_idx[valid_i]].append(bbox_xywh)
                         temp_body_pose[valid_idx[valid_i]].append(pose[3:].reshape((23, 3)))
                         temp_trans[valid_idx[valid_i]].append(tran)
@@ -172,6 +175,7 @@ class Pw3dConverter(BaseModeConverter):
                 meta['gender'].extend(reduce(lambda a,b:a+b, temp_meta_gender))
                 bbox_xywh_.extend(reduce(lambda a,b:a+b, temp_bbox_xywh_))
                 image_path_.extend(reduce(lambda a,b:a+b, temp_image_path_))
+                depth_path_.extend(reduce(lambda a,b:a+b, temp_depth_path_))
                 cam_param_.extend(reduce(lambda a,b:a+b, temp_cam_param_))
                 translation.extend(reduce(lambda a,b:a+b, temp_trans))
 
@@ -187,6 +191,7 @@ class Pw3dConverter(BaseModeConverter):
         smpl['transl'] = np.array(translation)
 
         human_data['image_path'] = image_path_
+        human_data['depth_path'] = depth_path_
         human_data['bbox_xywh'] = bbox_xywh_
         human_data['smpl'] = smpl
         human_data['meta'] = meta
