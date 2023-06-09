@@ -4,8 +4,10 @@ from torch import nn
 from mmcv.runner.base_module import BaseModule
 from mmcv.cnn.resnet import BasicBlock
 
+from mmhuman3d.utils.geometry import rot6dplane_to_rotmat
 
-class MixedKPHead(BaseModule):
+
+class MixedSMPLHead(BaseModule):
 
     def __init__(self,
                  num_joints=24,
@@ -14,7 +16,7 @@ class MixedKPHead(BaseModule):
                  has_keypoint2dhead=False,
                  has_bbox3dhead=False,
                  ):
-        super(MixedKPHead, self).__init__()
+        super(MixedSMPLHead, self).__init__()
         self.center_head = nn.Sequential(
             nn.Conv2d(num_input_features, num_input_features, 3, 2, 1),
             nn.BatchNorm2d(num_input_features, momentum=0.1),
@@ -26,19 +28,26 @@ class MixedKPHead(BaseModule):
             nn.Conv2d(num_input_features, 1, 1)
         )
 
-        self.keypoint_head = nn.Sequential(
+        self.smpl_head = nn.Sequential(
             nn.Conv2d(num_input_features, num_input_features, 3, 2, 1),
             nn.BatchNorm2d(num_input_features, momentum=0.1),
             nn.ReLU(inplace=True),
+            # nn.Conv2d(num_input_features, num_input_features, 3, 2, 1),
+            # nn.BatchNorm2d(num_input_features, momentum=0.1),
+            # nn.ReLU(inplace=True),
             BasicBlock(num_input_features, num_input_features),
-            nn.Conv2d(num_input_features, num_input_features, kernel_size=3, padding=1)
+            BasicBlock(num_input_features, num_input_features)
         )
-        self.keypoint_final_layer = nn.Conv2d(num_input_features, num_joints*3, 1)
-
+        self.pose_final_layer = nn.Conv2d(num_input_features, num_joints*6, 1)
+        self.shape_final_layer = nn.Conv2d(num_input_features, 10, 1)
         self.camera_head = nn.Sequential(
             nn.Conv2d(num_input_features, num_input_features, 3, 2, 1),
             nn.BatchNorm2d(num_input_features, momentum=0.1),
             nn.ReLU(inplace=True),
+            # nn.Conv2d(num_input_features, num_input_features, 3, 2, 1),
+            # nn.BatchNorm2d(num_input_features, momentum=0.1),
+            # nn.ReLU(inplace=True),
+            BasicBlock(num_input_features, num_input_features),
             BasicBlock(num_input_features, num_input_features),
             nn.Conv2d(num_input_features, num_camera_params, 1)
         )
@@ -68,9 +77,16 @@ class MixedKPHead(BaseModule):
     def forward(self, x):
         center_heatmap = self.center_head(x['path_1'])
         
-        pred_keypoint_3d = self.keypoint_head(x['path_1'])
+        pose_feat = self.smpl_head(x['path_1'])
+        pred_pose = self.pose_final_layer(pose_feat)
+        pred_shape = self.shape_final_layer(pose_feat)
         pred_cam = self.camera_head(x['path_1'])
-        pred_keypoint_3d = self.keypoint_final_layer(pred_keypoint_3d)
+
+        pred_pose = pred_pose.permute(0, 2, 3, 1)
+        b, h, w = (pred_pose.shape[0], pred_pose.shape[1], pred_pose.shape[2])
+        pred_pose = pred_pose.reshape(b * h * w * self.num_joints, 3, 2)
+        pred_rotmat = rot6dplane_to_rotmat(pred_pose).reshape(b, h, w, self.num_joints, 3, 3)
+
         
         pred_keypoint_2d = None
         if self.has_keypoint2dhead:
@@ -84,7 +100,8 @@ class MixedKPHead(BaseModule):
             # 'pred_pose': pred_rotmat,
             # 'pred_shape': pred_shape,
             'pred_depth': x['depth'],
-            'pred_KP': pred_keypoint_3d,
+            'pred_pose': pred_rotmat,
+            'pred_shape': pred_shape,
             'pred_cam': pred_cam,
             'center_heatmap': center_heatmap.squeeze(),
             'pred_KP2d': pred_keypoint_2d,

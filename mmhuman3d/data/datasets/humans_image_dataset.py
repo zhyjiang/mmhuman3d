@@ -188,6 +188,9 @@ class HumansImageDataset(BaseDataset, metaclass=ABCMeta):
         #     image_path = os.path.join(path_list[1], path_list[0], path_list[2], path_list[3])
         info['image_path'] = os.path.join(self.data_prefix, 'datasets',
                                           self.dataset_name, image_path)
+        if 'depth_path' in self.human_data:
+            info['depth_path'] = os.path.join(self.data_prefix, 'datasets',
+                                        self.dataset_name, self.human_data['depth_path'][idx])
         if image_path.endswith('smc'):
             device, device_id, frame_id = self.human_data['image_id'][idx]
             info['image_id'] = (device, int(device_id), int(frame_id))

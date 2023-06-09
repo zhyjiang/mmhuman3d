@@ -102,6 +102,7 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
                  loss_heatmap2d: Optional[Union[dict, None]] = None,
                 #  loss_smpl_pose: Optional[Union[dict, None]] = None,
                 #  loss_smpl_betas: Optional[Union[dict, None]] = None,
+                 loss_depth: Optional[Union[dict, None]] = None,
                  loss_camera: Optional[Union[dict, None]] = None,
                  loss_adv: Optional[Union[dict, None]] = None,
                  loss_segm_mask: Optional[Union[dict, None]] = None,
@@ -152,6 +153,7 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
         # self.loss_smpl_pose = build_loss(loss_smpl_pose)
         # self.loss_smpl_betas = build_loss(loss_smpl_betas)
 
+        self.loss_depth = build_loss(loss_depth)
         self.loss_adv = build_loss(loss_adv)
         self.loss_camera = build_loss(loss_camera)
         self.loss_segm_mask = build_loss(loss_segm_mask)
@@ -420,6 +422,10 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
         loss = loss.view(loss.shape[0], -1).mean(-1)
         loss = torch.mean(loss * conf)
         return loss
+    
+    def compute_depth_loss(self, pred_depth, gt_depth):
+        import ipdb; ipdb.set_trace()
+        mask = gt_depth > 0
 
     def compute_camera_loss(self, cameras: torch.Tensor):
         """Compute loss for predicted camera parameters."""
@@ -560,6 +566,8 @@ class BodyModelKPEstimator(BaseArchitecture, metaclass=ABCMeta):
                 targets['valid_mask'],
                 img_res=self.img_res,
                 has_keypoints2d=has_keypoints2d)
+        if self.loss_depth is not None:
+            losses['depth_loss'] = self.compute_depth_loss(predictions['pred_depth'], targets['depth'])
         if self.loss_camera is not None:
             losses['camera_loss'] = self.compute_camera_loss(pred_cam)
         

@@ -11,6 +11,7 @@ from .pymafx_head import PyMAFXHead, Regressor
 from .simplehead import SimpleHead
 from .simplehead_KP import SimpleHeadKP
 from .mixedkphead import MixedKPHead
+from .mixedsmplhead import MixedSMPLHead
 
 HEADS = Registry('heads')
 
@@ -26,6 +27,7 @@ HEADS.register_module(name='Regressor', module=Regressor)
 HEADS.register_module(name='SimpleHead', module=SimpleHead)
 HEADS.register_module(name='SimpleHeadKP', module=SimpleHeadKP)
 HEADS.register_module(name='MixedKPHead', module=MixedKPHead)
+HEADS.register_module(name='MixedSMPLHead', module=MixedSMPLHead)
 
 
 def build_head(cfg):

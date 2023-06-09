@@ -962,11 +962,12 @@ class MultiMeshAffine:
     ''keypoints2d', 'keypoints3d', 'pose'.
     """
 
-    def __init__(self, img_res):
+    def __init__(self, img_res, with_depth=False):
         if isinstance(img_res, tuple):
             self.image_size = img_res
         else:
             self.image_size = np.array([img_res, img_res])
+        self.with_depth = with_depth
 
     def __call__(self, results):
         c = results['center']
@@ -990,6 +991,18 @@ class MultiMeshAffine:
                 trans, (int(self.image_size[0]), int(self.image_size[1])),
                 flags=cv2.INTER_LINEAR)
             results['img'] = img
+
+        if 'depth' in results:
+            depth = results['depth']
+            ori_depth = depth.copy()
+            results['ori_depth'] = ori_depth
+            results['depth_fields'] = ['depth', 'ori_depth']
+
+            depth = cv2.warpAffine(
+                depth,
+                trans, (int(self.image_size[0]), int(self.image_size[1])),
+                flags=cv2.INTER_LINEAR)
+            results['depth'] = depth
 
         if 'keypoints2d' in results:
             keypoints2d_ = results['keypoints2d'].copy()

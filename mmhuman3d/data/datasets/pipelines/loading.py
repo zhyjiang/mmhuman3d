@@ -31,11 +31,13 @@ class LoadImageFromFile(object):
     def __init__(self,
                  to_float32=False,
                  color_type='color',
-                 file_client_args=dict(backend='disk')):
+                 file_client_args=dict(backend='disk'),
+                 with_depth=False):
         self.to_float32 = to_float32
         self.color_type = color_type
         self.file_client_args = file_client_args.copy()
         self.file_client = None
+        self.with_depth = with_depth
 
     def __call__(self, results):
         if self.file_client is None:
@@ -62,6 +64,10 @@ class LoadImageFromFile(object):
 
         if self.to_float32:
             img = img.astype(np.float32)
+        
+        if self.with_depth:
+            depth = np.load(results['depth_path'])
+            results['depth'] = depth
 
         results['filename'] = filename
         results['ori_filename'] = results['image_path']

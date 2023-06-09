@@ -103,6 +103,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
                  loss_smpl_pose: Optional[Union[dict, None]] = None,
                  loss_smpl_betas: Optional[Union[dict, None]] = None,
                  loss_camera: Optional[Union[dict, None]] = None,
+                 loss_depth: Optional[Union[dict, None]] = None,
                  loss_adv: Optional[Union[dict, None]] = None,
                  loss_segm_mask: Optional[Union[dict, None]] = None,
                  init_cfg: Optional[Union[list, dict, None]] = None):
@@ -150,6 +151,7 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         self.loss_camera = build_loss(loss_camera)
         self.loss_segm_mask = build_loss(loss_segm_mask)
         self.loss_centermap = build_loss(loss_centermap)
+        self.loss_depth = build_loss(loss_depth)
         set_requires_grad(self.body_model_train, False)
         set_requires_grad(self.body_model_test, False)
         
@@ -604,6 +606,13 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         loss = loss.view(loss.shape[0], -1).mean(-1)
         loss = torch.mean(loss * conf)
         return loss
+    
+    def compute_depth_loss(self, pred_depth, gt_depth):
+        mask = gt_depth > 0
+        gt_depth[mask] = 1 / gt_depth[mask]
+        loss = self.loss_depth(pred_depth, gt_depth, reduction_override='none')
+        loss = torch.mean(loss * mask)
+        return loss
 
     def compute_camera_loss(self, cameras: torch.Tensor):
         """Compute loss for predicted camera parameters."""
@@ -796,6 +805,8 @@ class BodyModelEstimator(BaseArchitecture, metaclass=ABCMeta):
         if self.loss_smpl_betas is not None:
             losses['smpl_betas_loss'] = self.compute_smpl_betas_loss(
                 pred_betas, gt_betas, has_smpl, targets['valid_mask'])
+        if self.loss_depth is not None:
+            losses['depth_loss'] = self.compute_depth_loss(predictions['pred_depth'], targets['depth'])
         if self.loss_camera is not None:
             losses['camera_loss'] = self.compute_camera_loss(pred_cam)
         if self.loss_segm_mask is not None:
